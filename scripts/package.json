@@ -1,0 +1,17 @@
+{
+  "name": "ribal-scripts",
+  "version": "1.0.0",
+  "description": "Firebase utilities for Ribal app development",
+  "scripts": {
+    "read": "GOOGLE_APPLICATION_CREDENTIALS='' node read_firestore.js",
+    "write": "GOOGLE_APPLICATION_CREDENTIALS='' node write_firestore.js",
+    "utils": "GOOGLE_APPLICATION_CREDENTIALS='' node firebase_utils.js",
+    "create-admin": "GOOGLE_APPLICATION_CREDENTIALS='' node create_admin.js"
+  },
+  "keywords": ["firebase", "ribal"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase-admin": "^13.6.0"
+  }
+}

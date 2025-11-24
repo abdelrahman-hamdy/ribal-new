@@ -1,0 +1,23 @@
+# Dependency directories
+node_modules/
+
+# Compiled output
+lib/
+
+# Local Firestore emulator data
+*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+firebase-debug.log
+firebase-debug.*.log

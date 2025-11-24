@@ -1,0 +1,54 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check file size (max 10MB)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Helper function to check if file is an allowed type
+    function isAllowedType() {
+      return request.resource.contentType.matches('image/.*') ||
+             request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
+             request.resource.contentType.matches('text/.*');
+    }
+
+    // Task attachments
+    match /tasks/{taskId}/{allPaths=**} {
+      // Anyone authenticated can read task attachments
+      allow read: if isAuthenticated();
+
+      // Only authenticated users can upload (admins/managers handle this in app)
+      allow write: if isAuthenticated()
+                   && isValidSize()
+                   && isAllowedType();
+
+      // Allow delete by authenticated users
+      allow delete: if isAuthenticated();
+    }
+
+    // User avatars
+    match /user_avatars/{userId}/{fileName} {
+      // Anyone can read avatars
+      allow read: if true;
+
+      // Only the user can upload their own avatar
+      allow write: if isAuthenticated()
+                   && request.auth.uid == userId
+                   && isValidSize()
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Default deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

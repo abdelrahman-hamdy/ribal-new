@@ -1,0 +1,24 @@
+flutter_launcher_icons:
+  # Android configuration
+  android: true
+  ios: true
+
+  # Path to the icon image
+  image_path: "assets/images/rbal-logo.png"
+
+  # Background color (white)
+  background_color: "#FFFFFF"
+
+  # Android specific settings
+  min_sdk_android: 21
+
+  # Adaptive icon for Android (API 26+)
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/rbal-logo.png"
+
+  # iOS specific settings
+  remove_alpha_ios: true
+
+  # Web favicon (optional)
+  web:
+    generate: false

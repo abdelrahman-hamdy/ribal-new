@@ -1,0 +1,23 @@
+flutter_native_splash:
+  # White background color for splash screen
+  color: "#FFFFFF"
+
+  # Path to the Ribal logo image (centered on splash)
+  image: assets/images/rbal-logo.png
+
+  # Branding mode - centers the logo
+  branding_mode: center
+
+  # Android 12+ specific settings
+  android_12:
+    color: "#FFFFFF"
+    image: assets/images/rbal-logo.png
+
+  # iOS settings
+  ios: true
+
+  # Web settings (optional)
+  web: false
+
+  # Fullscreen mode
+  fullscreen: true

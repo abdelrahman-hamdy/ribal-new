@@ -1,0 +1,861 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../../app/di/injection.dart';
+import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/widgets/buttons/ribal_button.dart';
+import '../../../../../core/widgets/feedback/empty_state.dart';
+import '../../../../../core/widgets/inputs/ribal_text_field.dart';
+import '../../../../../data/models/group_model.dart';
+import '../../../../../data/models/user_model.dart';
+import '../../../../auth/bloc/auth_bloc.dart';
+import '../bloc/groups_bloc.dart';
+
+class GroupsPage extends StatelessWidget {
+  const GroupsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => getIt<GroupsBloc>()..add(const GroupsLoadRequested()),
+      child: const _GroupsPageContent(),
+    );
+  }
+}
+
+class _GroupsPageContent extends StatelessWidget {
+  const _GroupsPageContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('المجموعات'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: _SearchField(),
+          ),
+        ),
+      ),
+      body: BlocConsumer<GroupsBloc, GroupsState>(
+        listener: (context, state) {
+          if (state.errorMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.errorMessage!),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+          if (state.successMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.successMessage!),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state.isLoading && state.groups.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state.filteredGroups.isEmpty) {
+            if (state.searchQuery.isNotEmpty) {
+              return EmptyState(
+                icon: Icons.search_off,
+                title: 'لا توجد نتائج',
+                message: 'لم يتم العثور على مجموعة تطابق "${state.searchQuery}"',
+              );
+            }
+            return const EmptyState(
+              icon: Icons.group_work_outlined,
+              title: 'لا توجد مجموعات',
+              message: 'قم بإنشاء مجموعات لتنظيم الموظفين',
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              context.read<GroupsBloc>().add(const GroupsLoadRequested());
+            },
+            child: ListView.separated(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: state.filteredGroups.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final group = state.filteredGroups[index];
+                final memberCount = state.getMemberCount(group.id);
+                return _GroupCard(group: group, memberCount: memberCount);
+              },
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showCreateDialog(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showCreateDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+      ),
+      builder: (dialogContext) => BlocProvider.value(
+        value: context.read<GroupsBloc>(),
+        child: _GroupFormDialog(
+          onSubmit: (name) {
+            final authState = context.read<AuthBloc>().state;
+            final userId =
+                authState is AuthAuthenticated ? authState.user.id : '';
+
+            if (userId.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('خطأ: لم يتم العثور على المستخدم'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+              return;
+            }
+
+            context.read<GroupsBloc>().add(
+                  GroupCreateRequested(
+                    name: name,
+                    createdBy: userId,
+                  ),
+                );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      onChanged: (value) {
+        if (value.isEmpty) {
+          context.read<GroupsBloc>().add(const GroupsSearchCleared());
+        } else {
+          context.read<GroupsBloc>().add(GroupsSearchRequested(query: value));
+        }
+      },
+      decoration: InputDecoration(
+        hintText: 'البحث في المجموعات...',
+        prefixIcon: const Icon(Icons.search),
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  final GroupModel group;
+  final int memberCount;
+
+  const _GroupCard({required this.group, required this.memberCount});
+
+  @override
+  Widget build(BuildContext context) {
+    final dateFormat = DateFormat('yyyy/MM/dd', 'ar');
+
+    return Container(
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppSpacing.borderRadiusMd,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  group.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.people_outline,
+                      size: 14,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      '$memberCount ${memberCount == 1 ? 'عضو' : 'أعضاء'}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 12,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      dateFormat.format(group.createdAt),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Actions
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.person_add_outlined, size: 20),
+                onPressed: () => _showMembersDialog(context, group),
+                tooltip: 'إدارة الأعضاء',
+                color: AppColors.success,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () => _showEditDialog(context, group),
+                tooltip: 'تعديل',
+                color: AppColors.primary,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => _confirmDelete(context, group, memberCount),
+                tooltip: 'حذف',
+                color: AppColors.error,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMembersDialog(BuildContext context, GroupModel group) {
+    // Load members and all users before showing dialog
+    final bloc = context.read<GroupsBloc>();
+    bloc.add(GroupMembersLoadRequested(groupId: group.id));
+    bloc.add(const AllUsersLoadRequested());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+      ),
+      builder: (dialogContext) => BlocProvider.value(
+        value: bloc,
+        child: _GroupMembersDialog(group: group),
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, GroupModel group) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+      ),
+      builder: (dialogContext) => BlocProvider.value(
+        value: context.read<GroupsBloc>(),
+        child: _GroupFormDialog(
+          group: group,
+          onSubmit: (name) {
+            context.read<GroupsBloc>().add(
+                  GroupUpdateRequested(
+                    group: GroupModel(
+                      id: group.id,
+                      name: name,
+                      createdBy: group.createdBy,
+                      createdAt: group.createdAt,
+                    ),
+                  ),
+                );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, GroupModel group, int memberCount) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('هل أنت متأكد من حذف المجموعة "${group.name}"؟'),
+            if (memberCount > 0) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: const BoxDecoration(
+                  color: AppColors.warningSurface,
+                  borderRadius: AppSpacing.borderRadiusSm,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_outlined,
+                      color: AppColors.warning,
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'سيتم إزالة $memberCount ${memberCount == 1 ? 'عضو' : 'أعضاء'} من هذه المجموعة',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.warningDark,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<GroupsBloc>().add(
+                    GroupDeleteRequested(groupId: group.id),
+                  );
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dialog for managing group members
+class _GroupMembersDialog extends StatefulWidget {
+  final GroupModel group;
+
+  const _GroupMembersDialog({required this.group});
+
+  @override
+  State<_GroupMembersDialog> createState() => _GroupMembersDialogState();
+}
+
+class _GroupMembersDialogState extends State<_GroupMembersDialog> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<GroupsBloc, GroupsState>(
+      builder: (context, state) {
+        // Filter out admins - only show employees and managers
+        final members = state
+            .getMembers(widget.group.id)
+            .where((u) => !u.role.isAdmin)
+            .toList();
+        final memberIds = members.map((m) => m.id).toSet();
+
+        // Get available users (not in this group, not admins)
+        final availableUsers = state.allUsers
+            .where((u) =>
+                !u.role.isAdmin &&
+                !memberIds.contains(u.id) &&
+                (u.groupId == null || u.groupId!.isEmpty))
+            .toList();
+
+        // Filter by search
+        final filteredMembers = _searchQuery.isEmpty
+            ? members
+            : members
+                .where((u) =>
+                    u.fullName.toLowerCase().contains(_searchQuery) ||
+                    u.email.toLowerCase().contains(_searchQuery))
+                .toList();
+
+        final filteredAvailable = _searchQuery.isEmpty
+            ? availableUsers
+            : availableUsers
+                .where((u) =>
+                    u.fullName.toLowerCase().contains(_searchQuery) ||
+                    u.email.toLowerCase().contains(_searchQuery))
+                .toList();
+
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          padding: AppSpacing.dialogPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title
+              Text(
+                'إدارة أعضاء "${widget.group.name}"',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Search field
+              TextField(
+                onChanged: (value) {
+                  setState(() => _searchQuery = value.toLowerCase().trim());
+                },
+                decoration: InputDecoration(
+                  hintText: 'البحث عن مستخدم...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: AppColors.surfaceVariant,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Content
+              Expanded(
+                child: state.isLoadingMembers
+                    ? const Center(child: CircularProgressIndicator())
+                    : DefaultTabController(
+                        length: 2,
+                        child: Column(
+                          children: [
+                            TabBar(
+                              tabs: [
+                                Tab(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.people, size: 18),
+                                      const SizedBox(width: 4),
+                                      Text('الأعضاء (${filteredMembers.length})'),
+                                    ],
+                                  ),
+                                ),
+                                Tab(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.person_add, size: 18),
+                                      const SizedBox(width: 4),
+                                      Text('إضافة (${filteredAvailable.length})'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Expanded(
+                              child: TabBarView(
+                                children: [
+                                  // Current members tab
+                                  _buildMembersList(
+                                    context,
+                                    filteredMembers,
+                                    isMember: true,
+                                  ),
+                                  // Available users tab
+                                  _buildMembersList(
+                                    context,
+                                    filteredAvailable,
+                                    isMember: false,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Close button
+              RibalButton(
+                text: 'إغلاق',
+                variant: RibalButtonVariant.outline,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMembersList(
+    BuildContext context,
+    List<UserModel> users, {
+    required bool isMember,
+  }) {
+    if (users.isEmpty) {
+      return Center(
+        child: Text(
+          isMember ? 'لا يوجد أعضاء في هذه المجموعة' : 'لا يوجد مستخدمين متاحين',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: users.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+      itemBuilder: (context, index) {
+        final user = users[index];
+        return _UserTile(
+          user: user,
+          isMember: isMember,
+          groupId: widget.group.id,
+        );
+      },
+    );
+  }
+}
+
+/// User tile for member management
+class _UserTile extends StatelessWidget {
+  final UserModel user;
+  final bool isMember;
+  final String groupId;
+
+  const _UserTile({
+    required this.user,
+    required this.isMember,
+    required this.groupId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: AppSpacing.borderRadiusSm,
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: AppColors.primary,
+            child: Text(
+              user.initials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.fullName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  user.email,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          // Role badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.getRoleSurfaceColor(user.role.name),
+              borderRadius: AppSpacing.borderRadiusFull,
+            ),
+            child: Text(
+              user.role.displayNameAr,
+              style: TextStyle(
+                color: AppColors.getRoleColor(user.role.name),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          // Action button
+          IconButton(
+            icon: Icon(
+              isMember ? Icons.remove_circle_outline : Icons.add_circle_outline,
+              size: 22,
+            ),
+            color: isMember ? AppColors.error : AppColors.success,
+            onPressed: () {
+              if (isMember) {
+                context.read<GroupsBloc>().add(
+                      GroupMemberRemoveRequested(
+                        groupId: groupId,
+                        userId: user.id,
+                      ),
+                    );
+              } else {
+                context.read<GroupsBloc>().add(
+                      GroupMemberAddRequested(
+                        groupId: groupId,
+                        userId: user.id,
+                      ),
+                    );
+              }
+            },
+            tooltip: isMember ? 'إزالة من المجموعة' : 'إضافة إلى المجموعة',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupFormDialog extends StatefulWidget {
+  final GroupModel? group;
+  final void Function(String name) onSubmit;
+
+  const _GroupFormDialog({
+    this.group,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_GroupFormDialog> createState() => _GroupFormDialogState();
+}
+
+class _GroupFormDialogState extends State<_GroupFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  bool _isSubmitting = false;
+
+  bool get _isEditing => widget.group != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.group != null) {
+      _nameController.text = widget.group!.name;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<GroupsBloc, GroupsState>(
+      listener: (context, state) {
+        if (state.successMessage != null && _isSubmitting) {
+          Navigator.pop(context);
+        }
+        if (state.errorMessage != null) {
+          setState(() => _isSubmitting = false);
+        }
+      },
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Container(
+            padding: AppSpacing.dialogPadding,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Title
+                  Text(
+                    _isEditing ? 'تعديل المجموعة' : 'إنشاء مجموعة جديدة',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  // Name field
+                  RibalTextField(
+                    controller: _nameController,
+                    label: 'اسم المجموعة',
+                    hint: 'أدخل اسم المجموعة',
+                    prefixIcon: Icons.group_work_outlined,
+                    textInputAction: TextInputAction.done,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'اسم المجموعة مطلوب';
+                      }
+                      if (value.length < 2) {
+                        return 'اسم المجموعة قصير جداً';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  // Preview
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: AppSpacing.borderRadiusMd,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          'معاينة:',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySurface,
+                            borderRadius: AppSpacing.borderRadiusFull,
+                            border: Border.all(color: AppColors.primary),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.group_work,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                _nameController.text.isEmpty
+                                    ? 'اسم المجموعة'
+                                    : _nameController.text,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  // Submit button
+                  RibalButton(
+                    text: _isEditing ? 'حفظ التعديلات' : 'إنشاء المجموعة',
+                    isLoading: _isSubmitting,
+                    onPressed: _submit,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  // Cancel button
+                  RibalButton(
+                    text: 'إلغاء',
+                    variant: RibalButtonVariant.outline,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() => _isSubmitting = true);
+      widget.onSubmit(_nameController.text.trim());
+    }
+  }
+}

@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to get user data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+
+    // Helper function to check if user is admin or manager
+    function isAdminOrManager() {
+      return isAuthenticated() && (getUserData().role == 'admin' || getUserData().role == 'manager');
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // All authenticated users can read user profiles (for displaying names/avatars in tasks)
+      allow read: if isAuthenticated();
+
+      // Only admins can create users
+      allow create: if isAdmin();
+
+      // Users can update their own fcmTokens and avatarUrl, admins can update anything
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmTokens', 'avatarUrl', 'updatedAt'])
+        || isAdmin()
+      );
+
+      // Only admins can delete users
+      allow delete: if isAdmin();
+    }
+
+    // Invitations collection
+    match /invitations/{invitationId} {
+      // Only admins can manage invitations
+      allow read, write: if isAdmin();
+    }
+
+    // Whitelist collection
+    match /whitelist/{email} {
+      // Only admins can manage whitelist
+      allow read, write: if isAdmin();
+    }
+
+    // Groups collection
+    match /groups/{groupId} {
+      // Admins and managers can read groups
+      allow read: if isAdminOrManager();
+
+      // Only admins can create/update/delete groups
+      allow write: if isAdmin();
+    }
+
+    // Labels collection
+    match /labels/{labelId} {
+      // All authenticated users can read labels
+      allow read: if isAuthenticated();
+
+      // Only admins can manage labels
+      allow write: if isAdmin();
+    }
+
+    // Tasks collection
+    match /tasks/{taskId} {
+      // All authenticated users can read tasks
+      allow read: if isAuthenticated();
+
+      // Admins and managers can create/update/delete tasks
+      allow write: if isAdminOrManager();
+    }
+
+    // Assignments collection
+    match /assignments/{assignmentId} {
+      // Users can read their own assignments, admins/managers can read all
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdminOrManager()
+      );
+
+      // Cloud Functions create assignments (admin SDK bypasses rules)
+      // Users can update their own assignment status
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'completedAt', 'apologizedAt', 'apologizeMessage', 'markedDoneBy', 'attachmentUrl'])
+        || isAdminOrManager()
+      );
+
+      // Only Cloud Functions should create/delete assignments
+      // But allow admins for manual management
+      allow create, delete: if isAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
+      // Users can create notifications for themselves (for testing)
+      // Cloud Functions will normally create notifications
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+
+      // Users can update their own notifications (mark as read/seen)
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isRead', 'isSeen'])
+      );
+
+      // Users can delete their own notifications
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Settings collection
+    match /settings/{document} {
+      // All authenticated users can read settings (for deadline checks)
+      allow read: if isAuthenticated();
+
+      // Only admins can update settings
+      allow write: if isAdmin();
+    }
+  }
+}
