@@ -14,6 +14,10 @@ class AssignmentsState extends Equatable {
   final String? successMessage;
   final String? taskDeadline; // Global task deadline (e.g., "20:00")
 
+  /// Whether the initial load has completed at least once
+  /// Used to differentiate between "loading for the first time" and "empty after load"
+  final bool hasLoadedOnce;
+
   const AssignmentsState({
     this.userId,
     this.assignments = const [],
@@ -22,14 +26,17 @@ class AssignmentsState extends Equatable {
     this.filteredAssignmentsWithTasks = const [],
     required this.selectedDate,
     this.filterStatus,
-    this.isLoading = false,
+    this.isLoading = true, // Start in loading state
     this.errorMessage,
     this.successMessage,
     this.taskDeadline,
+    this.hasLoadedOnce = false,
   });
 
   factory AssignmentsState.initial() => AssignmentsState(
         selectedDate: KsaTimezone.today(),
+        isLoading: true,
+        hasLoadedOnce: false,
       );
 
   AssignmentsState copyWith({
@@ -47,6 +54,7 @@ class AssignmentsState extends Equatable {
     String? successMessage,
     bool clearSuccess = false,
     String? taskDeadline,
+    bool? hasLoadedOnce,
   }) {
     return AssignmentsState(
       userId: userId ?? this.userId,
@@ -61,6 +69,7 @@ class AssignmentsState extends Equatable {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       successMessage: clearSuccess ? null : (successMessage ?? this.successMessage),
       taskDeadline: taskDeadline ?? this.taskDeadline,
+      hasLoadedOnce: hasLoadedOnce ?? this.hasLoadedOnce,
     );
   }
 
@@ -77,6 +86,7 @@ class AssignmentsState extends Equatable {
         errorMessage,
         successMessage,
         taskDeadline,
+        hasLoadedOnce,
       ];
 
   /// Get pending assignments count

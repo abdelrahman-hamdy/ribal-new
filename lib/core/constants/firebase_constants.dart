@@ -70,6 +70,20 @@ abstract final class FirebaseConstants {
   static const String assignmentCreatedAt = 'createdAt';
 
   // ============================================
+  // NOTE FIELDS (subcollection under assignments)
+  // ============================================
+
+  static const String notesSubcollection = 'notes';
+  static const String noteAssignmentId = 'assignmentId';
+  static const String noteTaskId = 'taskId';
+  static const String noteSenderId = 'senderId';
+  static const String noteSenderName = 'senderName';
+  static const String noteSenderRole = 'senderRole';
+  static const String noteMessage = 'message';
+  static const String noteIsApologizeNote = 'isApologizeNote';
+  static const String noteCreatedAt = 'createdAt';
+
+  // ============================================
   // GROUP FIELDS
   // ============================================
 

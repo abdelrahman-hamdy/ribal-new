@@ -34,14 +34,20 @@ class AssignmentDetailMarkCompletedRequested extends AssignmentDetailEvent {
 class AssignmentDetailApologizeRequested extends AssignmentDetailEvent {
   final String assignmentId;
   final String? message;
+  final String? senderId;
+  final String? senderName;
+  final UserRole? senderRole;
 
   const AssignmentDetailApologizeRequested({
     required this.assignmentId,
     this.message,
+    this.senderId,
+    this.senderName,
+    this.senderRole,
   });
 
   @override
-  List<Object?> get props => [assignmentId, message];
+  List<Object?> get props => [assignmentId, message, senderId, senderName, senderRole];
 }
 
 class AssignmentDetailReactivateRequested extends AssignmentDetailEvent {

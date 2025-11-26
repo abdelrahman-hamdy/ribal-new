@@ -103,7 +103,7 @@ class _RegisterPageState extends State<RegisterPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: context.colors.background,
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
@@ -134,14 +134,16 @@ class _RegisterPageState extends State<RegisterPage> {
                       // Title
                       Text(
                         'إنشاء حساب',
-                        style: AppTypography.displayMedium,
+                        style: AppTypography.displayMedium.copyWith(
+                          color: context.colors.textPrimary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         'أدخل بياناتك لإنشاء حساب جديد',
                         style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -301,7 +303,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           Text(
                             'لديك حساب بالفعل؟',
                             style: AppTypography.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                           TextButton(

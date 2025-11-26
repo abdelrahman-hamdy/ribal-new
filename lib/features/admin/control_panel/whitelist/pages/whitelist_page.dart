@@ -11,6 +11,7 @@ import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../core/widgets/inputs/ribal_text_field.dart';
 import '../../../../../data/models/user_model.dart';
 import '../../../../../data/models/whitelist_model.dart';
+import '../../../../../l10n/generated/app_localizations.dart';
 import '../../../../auth/bloc/auth_bloc.dart';
 import '../bloc/whitelist_bloc.dart';
 
@@ -31,9 +32,10 @@ class _WhitelistPageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('القائمة البيضاء'),
+        title: Text(l10n.whitelist_title),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -70,14 +72,14 @@ class _WhitelistPageContent extends StatelessWidget {
             if (state.searchQuery.isNotEmpty) {
               return EmptyState(
                 icon: Icons.search_off,
-                title: 'لا توجد نتائج',
-                message: 'لم يتم العثور على بريد إلكتروني يطابق "${state.searchQuery}"',
+                title: l10n.common_no_results,
+                message: l10n.whitelist_noEntriesMatchingSearch(state.searchQuery),
               );
             }
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.verified_user_outlined,
-              title: 'لا توجد عناصر',
-              message: 'أضف عناوين البريد الإلكتروني المعتمدة للتسجيل المباشر',
+              title: l10n.whitelist_noEntries,
+              message: l10n.whitelist_description,
             );
           }
 
@@ -105,12 +107,13 @@ class _WhitelistPageContent extends StatelessWidget {
   }
 
   void _showAddDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
       ),
@@ -123,8 +126,8 @@ class _WhitelistPageContent extends StatelessWidget {
 
             if (userId.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('خطأ: لم يتم العثور على المستخدم'),
+                SnackBar(
+                  content: Text(l10n.common_errorUserNotFound),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -148,6 +151,7 @@ class _WhitelistPageContent extends StatelessWidget {
 class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return TextField(
       onChanged: (value) {
         if (value.isEmpty) {
@@ -157,10 +161,10 @@ class _SearchField extends StatelessWidget {
         }
       },
       decoration: InputDecoration(
-        hintText: 'البحث بالبريد الإلكتروني...',
+        hintText: l10n.whitelist_searchHint,
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: context.colors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -176,18 +180,31 @@ class _WhitelistEntryCard extends StatelessWidget {
 
   const _WhitelistEntryCard({required this.entry});
 
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final roleColor = AppColors.getRoleColor(entry.role.name);
     final roleSurfaceColor = AppColors.getRoleSurfaceColor(entry.role.name);
-    final dateFormat = DateFormat('dd/MM/yyyy', 'ar');
+    final dateFormat = DateFormat('dd/MM/yyyy', locale);
 
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -227,7 +244,7 @@ class _WhitelistEntryCard extends StatelessWidget {
                         borderRadius: AppSpacing.borderRadiusFull,
                       ),
                       child: Text(
-                        entry.role.displayNameAr,
+                        _getRoleDisplayName(l10n, entry.role),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: roleColor,
                           fontWeight: FontWeight.w600,
@@ -238,7 +255,7 @@ class _WhitelistEntryCard extends StatelessWidget {
                     Text(
                       dateFormat.format(entry.createdAt),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
+                        color: context.colors.textTertiary,
                       ),
                     ),
                   ],
@@ -254,19 +271,19 @@ class _WhitelistEntryCard extends StatelessWidget {
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: entry.email));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم نسخ البريد الإلكتروني'),
-                      duration: Duration(seconds: 2),
+                    SnackBar(
+                      content: Text(l10n.whitelist_emailCopied),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 },
-                tooltip: 'نسخ',
-                color: AppColors.textSecondary,
+                tooltip: l10n.common_copy,
+                color: context.colors.textSecondary,
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () => _confirmDelete(context),
-                tooltip: 'حذف',
+                tooltip: l10n.common_delete,
                 color: AppColors.error,
               ),
             ],
@@ -277,15 +294,16 @@ class _WhitelistEntryCard extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف "${entry.email}" من القائمة البيضاء؟'),
+        title: Text(l10n.common_confirmDelete),
+        content: Text(l10n.whitelist_deleteConfirmMessage(entry.email)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -295,7 +313,7 @@ class _WhitelistEntryCard extends StatelessWidget {
               );
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('حذف'),
+            child: Text(l10n.common_delete),
           ),
         ],
       ),
@@ -326,6 +344,7 @@ class _AddWhitelistDialogState extends State<_AddWhitelistDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<WhitelistBloc, WhitelistState>(
       listener: (context, state) {
         if (state.successMessage != null && _isSubmitting) {
@@ -350,7 +369,7 @@ class _AddWhitelistDialogState extends State<_AddWhitelistDialog> {
                 children: [
                   // Title
                 Text(
-                  'إضافة إلى القائمة البيضاء',
+                  l10n.whitelist_addTitle,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -360,18 +379,18 @@ class _AddWhitelistDialogState extends State<_AddWhitelistDialog> {
                 // Email field
                 RibalTextField(
                   controller: _emailController,
-                  label: 'البريد الإلكتروني',
-                  hint: 'أدخل البريد الإلكتروني',
+                  label: l10n.whitelist_emailLabel,
+                  hint: l10n.whitelist_emailHint,
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'البريد الإلكتروني مطلوب';
+                      return l10n.whitelist_emailRequired;
                     }
                     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                     if (!emailRegex.hasMatch(value)) {
-                      return 'البريد الإلكتروني غير صالح';
+                      return l10n.whitelist_emailInvalid;
                     }
                     return null;
                   },
@@ -379,13 +398,13 @@ class _AddWhitelistDialogState extends State<_AddWhitelistDialog> {
                 const SizedBox(height: AppSpacing.md),
                 // Role selection
                 Text(
-                  'الدور',
+                  l10n.whitelist_role,
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Container(
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.colors.border),
                     borderRadius: AppSpacing.borderRadiusMd,
                   ),
                   child: Column(
@@ -415,14 +434,14 @@ class _AddWhitelistDialogState extends State<_AddWhitelistDialog> {
                 const SizedBox(height: AppSpacing.lg),
                 // Submit button
                 RibalButton(
-                  text: 'إضافة',
+                  text: l10n.common_add,
                   isLoading: _isSubmitting,
                   onPressed: _submit,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 // Cancel button
                 RibalButton(
-                  text: 'إلغاء',
+                  text: l10n.common_cancel,
                   variant: RibalButtonVariant.outline,
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -458,8 +477,31 @@ class _RoleOption extends StatelessWidget {
     this.isLast = false,
   });
 
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
+  String _getRoleDescription(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.whitelist_roleAdminDesc;
+      case UserRole.manager:
+        return l10n.whitelist_roleManagerDesc;
+      case UserRole.employee:
+        return l10n.whitelist_roleEmployeeDesc;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final roleColor = AppColors.getRoleColor(role.name);
     final roleSurfaceColor = AppColors.getRoleSurfaceColor(role.name);
 
@@ -484,12 +526,12 @@ class _RoleOption extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: isSelected ? roleColor : AppColors.surfaceVariant,
+                color: isSelected ? roleColor : context.colors.surfaceVariant,
                 borderRadius: AppSpacing.borderRadiusSm,
               ),
               child: Icon(
                 _getRoleIcon(),
-                color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+                color: isSelected ? AppColors.textOnPrimary : context.colors.textSecondary,
                 size: 18,
               ),
             ),
@@ -499,16 +541,16 @@ class _RoleOption extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    role.displayNameAr,
+                    _getRoleDisplayName(l10n, role),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? roleColor : AppColors.textPrimary,
+                      color: isSelected ? roleColor : context.colors.textPrimary,
                     ),
                   ),
                   Text(
-                    _getRoleDescription(),
+                    _getRoleDescription(l10n, role),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                   ),
                 ],
@@ -534,17 +576,6 @@ class _RoleOption extends StatelessWidget {
         return Icons.manage_accounts;
       case UserRole.employee:
         return Icons.person;
-    }
-  }
-
-  String _getRoleDescription() {
-    switch (role) {
-      case UserRole.admin:
-        return 'صلاحيات كاملة لإدارة النظام';
-      case UserRole.manager:
-        return 'إدارة المهام والموظفين المعينين';
-      case UserRole.employee:
-        return 'تنفيذ المهام المسندة';
     }
   }
 }

@@ -94,7 +94,7 @@ class RibalButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.error,
-            backgroundColor: AppColors.errorSurface,
+            backgroundColor: Colors.transparent,
             side: const BorderSide(color: AppColors.error, width: 1),
             padding: _getPadding(),
             textStyle: _getTextStyle(),

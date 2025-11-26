@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../app/di/injection.dart';
 import '../../../data/models/assignment_model.dart';
 import '../../../features/employee/tasks/bloc/assignments_bloc.dart';
 import '../../../features/employee/tasks/widgets/assignment_list_item.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../animated/animated_count.dart';
 import '../feedback/empty_state.dart';
 import '../feedback/error_state.dart';
 import '../notifications/notification_badge.dart';
+import '../skeletons/assignment_list_item_skeleton.dart';
 
 export '../../../features/employee/tasks/bloc/assignments_bloc.dart';
 
@@ -92,10 +94,12 @@ class _MyAssignmentsContent extends StatelessWidget {
           Expanded(
             child: BlocBuilder<AssignmentsBloc, AssignmentsState>(
               builder: (context, state) {
-                if (state.isLoading && state.assignments.isEmpty) {
-                  return const _AssignmentsLoadingState();
+                // Initial loading - always show skeleton first
+                if (!state.hasLoadedOnce) {
+                  return const AssignmentListSkeletonList(itemCount: 4);
                 }
 
+                // Error state (only after load attempt)
                 if (state.errorMessage != null && state.assignments.isEmpty) {
                   return ErrorState(
                     message: state.errorMessage!,
@@ -105,7 +109,9 @@ class _MyAssignmentsContent extends StatelessWidget {
                   );
                 }
 
+                // Empty state (only after successful load with no data)
                 if (state.filteredAssignmentsWithTasks.isEmpty) {
+                  final l10n = AppLocalizations.of(context)!;
                   return RefreshIndicator(
                     onRefresh: () async {
                       context
@@ -114,18 +120,19 @@ class _MyAssignmentsContent extends StatelessWidget {
                     },
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 100),
+                      children: [
+                        const SizedBox(height: 100),
                         EmptyState(
                           icon: Icons.task_outlined,
-                          title: 'لا توجد مهام',
-                          message: 'لم يتم تعيين أي مهام لك اليوم',
+                          title: l10n.task_noTasks,
+                          message: l10n.task_noTasksAssignedToday,
                         ),
                       ],
                     ),
                   );
                 }
 
+                // Has data - show assignments list
                 return _AssignmentsList(
                   assignments: state.filteredAssignmentsWithTasks,
                   userId: userId,
@@ -155,11 +162,12 @@ class _WelcomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: AppSpacing.pagePadding,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: context.colors.surfaceVariant,
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(AppSpacing.radiusLg),
           bottomRight: Radius.circular(AppSpacing.radiusLg),
         ),
@@ -168,80 +176,83 @@ class _WelcomeHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'مرحباً، $userName',
-            style: AppTypography.headlineMedium,
+            l10n.user_welcomeName(userName),
+            style: AppTypography.headlineMedium.copyWith(
+              color: context.colors.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'مهامك لهذا اليوم',
+            l10n.task_todayTasks,
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // Filter chips row
+          // Filter chips row - always visible with animated counts
           BlocBuilder<AssignmentsBloc, AssignmentsState>(
             builder: (context, state) {
-              final isLoading = state.isLoading && state.assignments.isEmpty;
+              final isLoading = !state.hasLoadedOnce;
 
-              return Skeletonizer(
-                enabled: isLoading,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'الكل',
-                        count: isLoading ? 0 : state.assignments.length,
-                        color: AppColors.primary,
-                        isSelected: state.filterStatus == null,
-                        onTap: isLoading
-                            ? null
-                            : () => context
-                                .read<AssignmentsBloc>()
-                                .add(const AssignmentsFilterChanged(status: null)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _FilterChip(
-                        label: 'قيد الانتظار',
-                        count: isLoading ? 0 : state.pendingCount,
-                        color: AppColors.warning,
-                        isSelected: state.filterStatus == AssignmentStatus.pending,
-                        onTap: isLoading
-                            ? null
-                            : () => context.read<AssignmentsBloc>().add(
-                                const AssignmentsFilterChanged(
-                                    status: AssignmentStatus.pending)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _FilterChip(
-                        label: 'مكتملة',
-                        count: isLoading ? 0 : state.completedCount,
-                        color: AppColors.success,
-                        isSelected:
-                            state.filterStatus == AssignmentStatus.completed,
-                        onTap: isLoading
-                            ? null
-                            : () => context.read<AssignmentsBloc>().add(
-                                const AssignmentsFilterChanged(
-                                    status: AssignmentStatus.completed)),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _FilterChip(
-                        label: 'معتذر',
-                        count: isLoading ? 0 : state.apologizedCount,
-                        color: AppColors.error,
-                        isSelected:
-                            state.filterStatus == AssignmentStatus.apologized,
-                        onTap: isLoading
-                            ? null
-                            : () => context.read<AssignmentsBloc>().add(
-                                const AssignmentsFilterChanged(
-                                    status: AssignmentStatus.apologized)),
-                      ),
-                    ],
-                  ),
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _FilterChip(
+                      label: l10n.common_all,
+                      count: state.assignments.length,
+                      isLoading: isLoading,
+                      color: AppColors.primary,
+                      isSelected: state.filterStatus == null,
+                      onTap: isLoading
+                          ? null
+                          : () => context
+                              .read<AssignmentsBloc>()
+                              .add(const AssignmentsFilterChanged(status: null)),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _FilterChip(
+                      label: l10n.task_statusPending,
+                      count: state.pendingCount,
+                      isLoading: isLoading,
+                      color: AppColors.warning,
+                      isSelected: state.filterStatus == AssignmentStatus.pending,
+                      onTap: isLoading
+                          ? null
+                          : () => context.read<AssignmentsBloc>().add(
+                              const AssignmentsFilterChanged(
+                                  status: AssignmentStatus.pending)),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _FilterChip(
+                      label: l10n.task_completed,
+                      count: state.completedCount,
+                      isLoading: isLoading,
+                      color: AppColors.success,
+                      isSelected:
+                          state.filterStatus == AssignmentStatus.completed,
+                      onTap: isLoading
+                          ? null
+                          : () => context.read<AssignmentsBloc>().add(
+                              const AssignmentsFilterChanged(
+                                  status: AssignmentStatus.completed)),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _FilterChip(
+                      label: l10n.task_statusApologized,
+                      count: state.apologizedCount,
+                      isLoading: isLoading,
+                      color: AppColors.error,
+                      isSelected:
+                          state.filterStatus == AssignmentStatus.apologized,
+                      onTap: isLoading
+                          ? null
+                          : () => context.read<AssignmentsBloc>().add(
+                              const AssignmentsFilterChanged(
+                                  status: AssignmentStatus.apologized)),
+                    ),
+                  ],
                 ),
               );
             },
@@ -252,10 +263,11 @@ class _WelcomeHeader extends StatelessWidget {
   }
 }
 
-/// Filter chip with color support
+/// Filter chip with animated count and color support
 class _FilterChip extends StatelessWidget {
   final String label;
   final int count;
+  final bool isLoading;
   final Color color;
   final bool isSelected;
   final VoidCallback? onTap;
@@ -263,6 +275,7 @@ class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
     required this.count,
+    required this.isLoading,
     required this.color,
     this.isSelected = false,
     this.onTap,
@@ -270,6 +283,11 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
+      color: isSelected ? color : context.colors.textSecondary,
+      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+    );
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -279,10 +297,10 @@ class _FilterChip extends StatelessWidget {
           vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.15) : AppColors.surface,
+          color: isSelected ? color.withValues(alpha: 0.15) : context.colors.surface,
           borderRadius: AppSpacing.borderRadiusFull,
           border: Border.all(
-            color: isSelected ? color : AppColors.border,
+            color: isSelected ? color : context.colors.border,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -299,13 +317,14 @@ class _FilterChip extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            Text(
-              '$label ($count)',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: isSelected ? color : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              ),
+            Text(label, style: textStyle),
+            Text(' (', style: textStyle),
+            AnimatedStatCount(
+              isLoading: isLoading,
+              count: count,
+              style: textStyle,
             ),
+            Text(')', style: textStyle),
           ],
         ),
       ),
@@ -406,15 +425,16 @@ class _AssignmentsList extends StatelessWidget {
     String assignmentId,
     String userId,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد التسليم'),
-        content: const Text('هل أنت متأكد من تسليم هذه المهمة؟'),
+        title: Text(l10n.assignment_submitConfirmTitle),
+        content: Text(l10n.assignment_completeConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -429,7 +449,7 @@ class _AssignmentsList extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.success,
             ),
-            child: const Text('تسليم'),
+            child: Text(l10n.assignment_submit),
           ),
         ],
       ),
@@ -437,23 +457,24 @@ class _AssignmentsList extends StatelessWidget {
   }
 
   void _showApologizeDialog(BuildContext context, String assignmentId) {
+    final l10n = AppLocalizations.of(context)!;
     final messageController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('الاعتذار عن المهمة'),
+        title: Text(l10n.assignment_apologize),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('يرجى إدخال سبب الاعتذار (اختياري):'),
+            Text(l10n.assignment_apologizeMessage),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: messageController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'سبب الاعتذار...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: l10n.assignment_apologizeReasonHint,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -461,7 +482,7 @@ class _AssignmentsList extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -478,133 +499,7 @@ class _AssignmentsList extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('اعتذار'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Skeleton loading state for assignments list
-class _AssignmentsLoadingState extends StatelessWidget {
-  const _AssignmentsLoadingState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Skeletonizer(
-      enabled: true,
-      child: ListView.separated(
-        padding: AppSpacing.pagePadding,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: 4,
-        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-        itemBuilder: (context, index) => const _SkeletonAssignmentItem(),
-      ),
-    );
-  }
-}
-
-/// Skeleton placeholder for an assignment item
-class _SkeletonAssignmentItem extends StatelessWidget {
-  const _SkeletonAssignmentItem();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: AppSpacing.cardPadding,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: Status badge + Deadline
-          Row(
-            children: [
-              // Skeleton status badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xxs,
-                ),
-                decoration: const BoxDecoration(
-                  color: AppColors.shimmerBase,
-                  borderRadius: AppSpacing.borderRadiusFull,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppColors.shimmerBase,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Container(
-                      width: 50,
-                      height: 11,
-                      decoration: BoxDecoration(
-                        color: AppColors.shimmerBase,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              // Skeleton deadline
-              Container(
-                width: 60,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppColors.shimmerBase,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-
-          // Skeleton title
-          Container(
-            width: double.infinity,
-            height: 18,
-            decoration: BoxDecoration(
-              color: AppColors.shimmerBase,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // Skeleton action buttons
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.shimmerBase,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Container(
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.shimmerBase,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  ),
-                ),
-              ),
-            ],
+            child: Text(l10n.assignment_apologizeConfirm),
           ),
         ],
       ),

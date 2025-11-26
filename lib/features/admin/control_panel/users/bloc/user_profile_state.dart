@@ -4,6 +4,7 @@ part of 'user_profile_bloc.dart';
 class UserProfileState extends Equatable {
   final String? userId;
   final String? currentUserId;
+  final UserRole? currentUserRole;
   final UserModel? user;
   final UserPerformance? stats;
   final List<AssignmentWithTask> todayAssignments;
@@ -23,6 +24,7 @@ class UserProfileState extends Equatable {
   const UserProfileState({
     this.userId,
     this.currentUserId,
+    this.currentUserRole,
     this.user,
     this.stats,
     this.todayAssignments = const [],
@@ -45,6 +47,7 @@ class UserProfileState extends Equatable {
   UserProfileState copyWith({
     String? userId,
     String? currentUserId,
+    UserRole? currentUserRole,
     UserModel? user,
     UserPerformance? stats,
     List<AssignmentWithTask>? todayAssignments,
@@ -65,6 +68,7 @@ class UserProfileState extends Equatable {
     return UserProfileState(
       userId: userId ?? this.userId,
       currentUserId: currentUserId ?? this.currentUserId,
+      currentUserRole: currentUserRole ?? this.currentUserRole,
       user: user ?? this.user,
       stats: stats ?? this.stats,
       todayAssignments: todayAssignments ?? this.todayAssignments,
@@ -85,6 +89,7 @@ class UserProfileState extends Equatable {
   List<Object?> get props => [
         userId,
         currentUserId,
+        currentUserRole,
         user,
         stats,
         todayAssignments,
@@ -101,9 +106,12 @@ class UserProfileState extends Equatable {
       ];
 
   /// Check if current user can mark assignments as done
-  /// Only the task creator can mark assignments done for others
+  /// Admins can mark any assignment as done, others only if they created the task
   bool canMarkDone(AssignmentWithTask assignment) {
     if (currentUserId == null) return false;
+    // Admin can mark any assignment as done
+    if (currentUserRole == UserRole.admin) return true;
+    // Others can only mark assignments done if they created the task
     return assignment.taskCreatorId == currentUserId;
   }
 }

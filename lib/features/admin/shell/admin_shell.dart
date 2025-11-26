@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_shadows.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AdminShell extends StatelessWidget {
   final Widget child;
@@ -13,35 +15,53 @@ class AdminShell extends StatelessWidget {
     required this.child,
   });
 
+  /// Root routes for each tab
+  static const _tabRoots = [
+    Routes.adminHome,
+    Routes.adminControlPanel,
+    Routes.adminProfile,
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: AppShadows.bottomNav,
-        ),
-        child: NavigationBar(
-          selectedIndex: _calculateSelectedIndex(context),
-          onDestinationSelected: (index) => _onItemTapped(index, context),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'الرئيسية',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
-              label: 'لوحة التحكم',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'الملف الشخصي',
-            ),
-          ],
+    final currentIndex = _calculateSelectedIndex(context);
+    final location = GoRouterState.of(context).matchedLocation;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackButton(context, location, currentIndex);
+      },
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            boxShadow: AppShadows.bottomNav,
+          ),
+          child: NavigationBar(
+            selectedIndex: currentIndex,
+            onDestinationSelected: (index) =>
+                _onItemTapped(index, context, currentIndex),
+            destinations: [
+              NavigationDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home),
+                label: AppLocalizations.of(context)!.nav_home,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.settings_outlined),
+                selectedIcon: const Icon(Icons.settings),
+                label: AppLocalizations.of(context)!.nav_controlPanel,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.person_outline),
+                selectedIcon: const Icon(Icons.person),
+                label: AppLocalizations.of(context)!.nav_profile,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -54,17 +74,45 @@ class AdminShell extends StatelessWidget {
     return 0;
   }
 
-  void _onItemTapped(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        context.go(Routes.adminHome);
-        break;
-      case 1:
-        context.go(Routes.adminControlPanel);
-        break;
-      case 2:
-        context.go(Routes.adminProfile);
-        break;
+  /// Check if we're on a nested (sub) page within a tab
+  bool _isOnNestedPage(String location, int currentIndex) {
+    final rootPath = _tabRoots[currentIndex];
+    // If location is longer than root and not equal to root, it's a nested page
+    // Special cases: /admin/statistics is nested under home, /admin/tasks/* is nested under home
+    if (currentIndex == 0) {
+      return location != Routes.adminHome;
     }
+    return location != rootPath && location.startsWith(rootPath);
+  }
+
+  /// Handle back button press
+  void _handleBackButton(
+      BuildContext context, String location, int currentIndex) {
+    // If on a nested page, go back to tab root
+    if (_isOnNestedPage(location, currentIndex)) {
+      context.go(_tabRoots[currentIndex]);
+    }
+    // If on home tab root, allow app exit
+    else if (currentIndex == 0) {
+      SystemNavigator.pop();
+    }
+    // If on other tab root, go to home
+    else {
+      context.go(Routes.adminHome);
+    }
+  }
+
+  void _onItemTapped(int index, BuildContext context, int currentIndex) {
+    // If tapping current tab, go to its root (useful when on nested page)
+    if (index == currentIndex) {
+      final location = GoRouterState.of(context).matchedLocation;
+      if (_isOnNestedPage(location, currentIndex)) {
+        context.go(_tabRoots[index]);
+      }
+      return;
+    }
+
+    // Navigate to the selected tab
+    context.go(_tabRoots[index]);
   }
 }

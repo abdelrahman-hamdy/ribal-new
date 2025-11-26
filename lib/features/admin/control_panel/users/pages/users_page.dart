@@ -9,6 +9,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/widgets/avatar/ribal_avatar.dart';
 import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../data/models/user_model.dart';
+import '../../../../../l10n/generated/app_localizations.dart';
 import '../bloc/users_bloc.dart';
 
 class UsersPage extends StatelessWidget {
@@ -28,9 +29,10 @@ class _UsersPageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('المستخدمين'),
+        title: Text(l10n.user_title),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -82,6 +84,7 @@ class _UsersPageContent extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context, UsersState state) {
+    final l10n = AppLocalizations.of(context)!;
     if (state.isLoading && state.users.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -90,21 +93,21 @@ class _UsersPageContent extends StatelessWidget {
       if (state.searchQuery.isNotEmpty) {
         return EmptyState(
           icon: Icons.search_off,
-          title: 'لا توجد نتائج',
-          message: 'لم يتم العثور على مستخدم يطابق "${state.searchQuery}"',
+          title: l10n.common_no_results,
+          message: l10n.user_noUsersMatchingSearch(state.searchQuery),
         );
       }
       if (state.filterRole != null) {
         return EmptyState(
           icon: Icons.filter_list_off,
-          title: 'لا يوجد مستخدمين',
-          message: 'لا يوجد مستخدمين بدور ${state.filterRole!.displayNameAr}',
+          title: l10n.user_noUsers,
+          message: l10n.user_noUsersInRole(_getRoleDisplayName(l10n, state.filterRole!)),
         );
       }
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.people_outline,
-        title: 'لا يوجد مستخدمين',
-        message: 'لم يتم تسجيل أي مستخدمين بعد',
+        title: l10n.user_noUsers,
+        message: l10n.user_noUsersSubtitle,
       );
     }
 
@@ -123,11 +126,23 @@ class _UsersPageContent extends StatelessWidget {
       ),
     );
   }
+
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
 }
 
 class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return TextField(
       onChanged: (value) {
         if (value.isEmpty) {
@@ -137,10 +152,10 @@ class _SearchField extends StatelessWidget {
         }
       },
       decoration: InputDecoration(
-        hintText: 'البحث بالاسم أو البريد الإلكتروني...',
+        hintText: l10n.user_searchHint,
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: context.colors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -166,38 +181,39 @@ class _StatsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      color: AppColors.primarySurface,
+      color: context.colors.primarySurface,
       child: Row(
         children: [
           Expanded(
             child: _StatItem(
-              label: 'الإجمالي',
+              label: l10n.common_total,
               value: total.toString(),
               color: AppColors.primary,
             ),
           ),
-          Container(width: 1, height: 40, color: AppColors.border),
+          Container(width: 1, height: 40, color: context.colors.border),
           Expanded(
             child: _StatItem(
-              label: 'مدراء',
+              label: l10n.user_roleAdmins,
               value: admins.toString(),
               color: AppColors.getRoleColor('admin'),
             ),
           ),
-          Container(width: 1, height: 40, color: AppColors.border),
+          Container(width: 1, height: 40, color: context.colors.border),
           Expanded(
             child: _StatItem(
-              label: 'مشرفين',
+              label: l10n.user_roleManagers,
               value: managers.toString(),
               color: AppColors.getRoleColor('manager'),
             ),
           ),
-          Container(width: 1, height: 40, color: AppColors.border),
+          Container(width: 1, height: 40, color: context.colors.border),
           Expanded(
             child: _StatItem(
-              label: 'موظفين',
+              label: l10n.user_roleEmployees,
               value: employees.toString(),
               color: AppColors.getRoleColor('employee'),
             ),
@@ -234,7 +250,7 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
         ),
       ],
@@ -249,12 +265,13 @@ class _FilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Row(
         children: [
           _FilterChip(
-            label: 'الكل',
+            label: l10n.common_all,
             isSelected: currentFilter == null,
             onTap: () => context.read<UsersBloc>().add(
               const UsersFilterByRoleChanged(role: null),
@@ -262,7 +279,7 @@ class _FilterTabs extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _FilterChip(
-            label: 'مدراء',
+            label: l10n.user_roleAdmins,
             isSelected: currentFilter == UserRole.admin,
             onTap: () => context.read<UsersBloc>().add(
               const UsersFilterByRoleChanged(role: UserRole.admin),
@@ -271,7 +288,7 @@ class _FilterTabs extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _FilterChip(
-            label: 'مشرفين',
+            label: l10n.user_roleManagers,
             isSelected: currentFilter == UserRole.manager,
             onTap: () => context.read<UsersBloc>().add(
               const UsersFilterByRoleChanged(role: UserRole.manager),
@@ -280,7 +297,7 @@ class _FilterTabs extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _FilterChip(
-            label: 'موظفين',
+            label: l10n.user_roleEmployees,
             isSelected: currentFilter == UserRole.employee,
             onTap: () => context.read<UsersBloc>().add(
               const UsersFilterByRoleChanged(role: UserRole.employee),
@@ -317,16 +334,16 @@ class _FilterChip extends StatelessWidget {
         duration: AppSpacing.animationFast,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: isSelected ? chipColor : AppColors.surfaceVariant,
+          color: isSelected ? chipColor : context.colors.surfaceVariant,
           borderRadius: AppSpacing.borderRadiusFull,
           border: Border.all(
-            color: isSelected ? chipColor : AppColors.border,
+            color: isSelected ? chipColor : context.colors.border,
           ),
         ),
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+            color: isSelected ? AppColors.textOnPrimary : context.colors.textSecondary,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -340,8 +357,20 @@ class _UserCard extends StatelessWidget {
 
   const _UserCard({required this.user});
 
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final roleColor = AppColors.getRoleColor(user.role.name);
     final roleSurfaceColor = AppColors.getRoleSurfaceColor(user.role.name);
 
@@ -351,9 +380,9 @@ class _UserCard extends StatelessWidget {
       child: Container(
         padding: AppSpacing.cardPadding,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.colors.surface,
           borderRadius: AppSpacing.borderRadiusMd,
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.colors.border),
         ),
         child: Row(
           children: [
@@ -380,7 +409,7 @@ class _UserCard extends StatelessWidget {
                   Text(
                     user.email,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -402,7 +431,7 @@ class _UserCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          user.role.displayNameAr,
+                          _getRoleDisplayName(l10n, user.role),
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: roleColor,
                             fontWeight: FontWeight.w600,
@@ -415,9 +444,10 @@ class _UserCard extends StatelessWidget {
               ),
             ),
             // Arrow
-            const Icon(
-              Icons.chevron_left,
-              color: AppColors.textTertiary,
+            Icon(
+              Icons.arrow_forward_ios,
+              color: context.colors.textTertiary,
+              size: 16,
             ),
           ],
         ),

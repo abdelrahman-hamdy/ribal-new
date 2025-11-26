@@ -36,8 +36,16 @@ class LabelsBloc extends Bloc<LabelsEvent, LabelsState> {
     await _labelsSubscription?.cancel();
 
     _labelsSubscription = _labelRepository.streamAllLabels().listen(
-      (labels) => add(_LabelsDataReceived(labels: labels)),
-      onError: (error) => add(const _LabelsErrorReceived()),
+      (labels) {
+        if (!isClosed) {
+          add(_LabelsDataReceived(labels: labels));
+        }
+      },
+      onError: (error) {
+        if (!isClosed) {
+          add(const _LabelsErrorReceived());
+        }
+      },
     );
   }
 

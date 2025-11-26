@@ -109,11 +109,14 @@ class UserModel with _$UserModel {
   /// Full name
   String get fullName => '$firstName $lastName';
 
-  /// Initials for avatar
+  /// Initials for avatar (with dot separator)
   String get initials {
     final first = firstName.isNotEmpty ? firstName[0] : '';
     final last = lastName.isNotEmpty ? lastName[0] : '';
-    return '$first$last'.toUpperCase();
+    if (first.isEmpty && last.isEmpty) return '';
+    if (first.isEmpty) return last.toUpperCase();
+    if (last.isEmpty) return first.toUpperCase();
+    return '$first.$last'.toUpperCase();
   }
 
   /// Convert to Firestore data

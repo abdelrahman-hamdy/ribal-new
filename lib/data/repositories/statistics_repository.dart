@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/constants/firebase_constants.dart';
+import '../../core/services/hive_cache_service.dart';
 import '../../core/utils/ksa_timezone.dart';
 import '../models/assignment_model.dart';
 import '../services/firestore_service.dart';
@@ -13,8 +14,10 @@ class StatisticsData {
   final int completedAssignments;
   final int pendingAssignments;
   final int apologizedAssignments;
+  final int overdueAssignments;
   final double completionRate;
   final double apologizeRate;
+  final double overdueRate;
   final Map<String, int> assignmentsByUser;
   final Map<String, int> completionsByUser;
 
@@ -24,11 +27,19 @@ class StatisticsData {
     required this.completedAssignments,
     required this.pendingAssignments,
     required this.apologizedAssignments,
+    required this.overdueAssignments,
     required this.completionRate,
     required this.apologizeRate,
+    required this.overdueRate,
     required this.assignmentsByUser,
     required this.completionsByUser,
   });
+
+  /// Combined "failed" count (apologized + overdue)
+  int get failedAssignments => apologizedAssignments + overdueAssignments;
+
+  /// Combined "failed" rate
+  double get failedRate => apologizeRate + overdueRate;
 
   factory StatisticsData.empty() => const StatisticsData(
         totalTasks: 0,
@@ -36,8 +47,10 @@ class StatisticsData {
         completedAssignments: 0,
         pendingAssignments: 0,
         apologizedAssignments: 0,
+        overdueAssignments: 0,
         completionRate: 0,
         apologizeRate: 0,
+        overdueRate: 0,
         assignmentsByUser: {},
         completionsByUser: {},
       );
@@ -49,6 +62,7 @@ class UserPerformance {
   final int totalAssignments;
   final int completedAssignments;
   final int apologizedAssignments;
+  final int overdueAssignments;
   final double completionRate;
 
   const UserPerformance({
@@ -56,16 +70,21 @@ class UserPerformance {
     required this.totalAssignments,
     required this.completedAssignments,
     required this.apologizedAssignments,
+    required this.overdueAssignments,
     required this.completionRate,
   });
+
+  /// Combined "failed" count (apologized + overdue)
+  int get failedAssignments => apologizedAssignments + overdueAssignments;
 }
 
 /// Statistics repository for analytics
 @lazySingleton
 class StatisticsRepository {
   final FirestoreService _firestoreService;
+  final HiveCacheService _cacheService;
 
-  StatisticsRepository(this._firestoreService);
+  StatisticsRepository(this._firestoreService, this._cacheService);
 
   /// Get statistics for date range
   Future<StatisticsData> getStatistics({
@@ -109,12 +128,17 @@ class StatisticsRepository {
         assignments.where((a) => a.status == AssignmentStatus.pending).length;
     final apologizedAssignments =
         assignments.where((a) => a.status == AssignmentStatus.apologized).length;
+    final overdueAssignments =
+        assignments.where((a) => a.status == AssignmentStatus.overdue).length;
 
     final completionRate = totalAssignments > 0
         ? (completedAssignments / totalAssignments) * 100
         : 0.0;
     final apologizeRate = totalAssignments > 0
         ? (apologizedAssignments / totalAssignments) * 100
+        : 0.0;
+    final overdueRate = totalAssignments > 0
+        ? (overdueAssignments / totalAssignments) * 100
         : 0.0;
 
     // Calculate per-user statistics
@@ -137,35 +161,140 @@ class StatisticsRepository {
       completedAssignments: completedAssignments,
       pendingAssignments: pendingAssignments,
       apologizedAssignments: apologizedAssignments,
+      overdueAssignments: overdueAssignments,
       completionRate: completionRate,
       apologizeRate: apologizeRate,
+      overdueRate: overdueRate,
       assignmentsByUser: assignmentsByUser,
       completionsByUser: completionsByUser,
     );
   }
 
-  /// Get today's statistics (using KSA timezone)
+  /// Get today's statistics (using KSA timezone) with caching
   Future<StatisticsData> getTodayStatistics() async {
+    const cacheKey = 'statistics_today';
+
+    // Try cache first (using tasks box for statistics)
+    final cachedJson = await _cacheService.get<Map<String, dynamic>>(
+      boxName: HiveCacheService.boxTasks,
+      key: cacheKey,
+      ttl: HiveCacheService.ttlShort, // 5 min TTL for frequently changing data
+    );
+
+    if (cachedJson != null) {
+      return _statisticsDataFromJson(cachedJson);
+    }
+
+    // Fetch from Firebase if cache miss
     final startOfDay = KsaTimezone.startOfToday();
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    return getStatistics(startDate: startOfDay, endDate: endOfDay);
+    final stats = await getStatistics(startDate: startOfDay, endDate: endOfDay);
+
+    // Cache the result
+    await _cacheService.put(
+      boxName: HiveCacheService.boxTasks,
+      key: cacheKey,
+      value: _statisticsDataToJson(stats),
+    );
+
+    return stats;
   }
 
-  /// Get this week's statistics (Sunday to Saturday, using KSA timezone)
+  /// Get this week's statistics (Sunday to Saturday, using KSA timezone) with caching
   Future<StatisticsData> getWeekStatistics() async {
+    const cacheKey = 'statistics_week';
+
+    // Try cache first (using tasks box for statistics)
+    final cachedJson = await _cacheService.get<Map<String, dynamic>>(
+      boxName: HiveCacheService.boxTasks,
+      key: cacheKey,
+      ttl: HiveCacheService.ttlMedium, // 30 min TTL
+    );
+
+    if (cachedJson != null) {
+      return _statisticsDataFromJson(cachedJson);
+    }
+
+    // Fetch from Firebase if cache miss
     final startOfWeek = KsaTimezone.startOfWeek();
     final endOfWeek = KsaTimezone.endOfWeek();
 
-    return getStatistics(startDate: startOfWeek, endDate: endOfWeek);
+    final stats = await getStatistics(startDate: startOfWeek, endDate: endOfWeek);
+
+    // Cache the result
+    await _cacheService.put(
+      boxName: HiveCacheService.boxTasks,
+      key: cacheKey,
+      value: _statisticsDataToJson(stats),
+    );
+
+    return stats;
   }
 
-  /// Get this month's statistics (using KSA timezone)
+  /// Get this month's statistics (using KSA timezone) with caching
   Future<StatisticsData> getMonthStatistics() async {
+    const cacheKey = 'statistics_month';
+
+    // Try cache first (using tasks box for statistics)
+    final cachedJson = await _cacheService.get<Map<String, dynamic>>(
+      boxName: HiveCacheService.boxTasks,
+      key: cacheKey,
+      ttl: HiveCacheService.ttlMedium, // 30 min TTL
+    );
+
+    if (cachedJson != null) {
+      return _statisticsDataFromJson(cachedJson);
+    }
+
+    // Fetch from Firebase if cache miss
     final startOfMonth = KsaTimezone.startOfMonth();
     final endOfMonth = KsaTimezone.endOfMonth();
 
-    return getStatistics(startDate: startOfMonth, endDate: endOfMonth);
+    final stats = await getStatistics(startDate: startOfMonth, endDate: endOfMonth);
+
+    // Cache the result
+    await _cacheService.put(
+      boxName: HiveCacheService.boxTasks,
+      key: cacheKey,
+      value: _statisticsDataToJson(stats),
+    );
+
+    return stats;
+  }
+
+  /// Helper: Convert StatisticsData to JSON for caching
+  Map<String, dynamic> _statisticsDataToJson(StatisticsData stats) {
+    return {
+      'totalTasks': stats.totalTasks,
+      'totalAssignments': stats.totalAssignments,
+      'completedAssignments': stats.completedAssignments,
+      'pendingAssignments': stats.pendingAssignments,
+      'apologizedAssignments': stats.apologizedAssignments,
+      'overdueAssignments': stats.overdueAssignments,
+      'completionRate': stats.completionRate,
+      'apologizeRate': stats.apologizeRate,
+      'overdueRate': stats.overdueRate,
+      'assignmentsByUser': stats.assignmentsByUser,
+      'completionsByUser': stats.completionsByUser,
+    };
+  }
+
+  /// Helper: Convert JSON to StatisticsData for caching
+  StatisticsData _statisticsDataFromJson(Map<String, dynamic> json) {
+    return StatisticsData(
+      totalTasks: json['totalTasks'] as int,
+      totalAssignments: json['totalAssignments'] as int,
+      completedAssignments: json['completedAssignments'] as int,
+      pendingAssignments: json['pendingAssignments'] as int,
+      apologizedAssignments: json['apologizedAssignments'] as int,
+      overdueAssignments: (json['overdueAssignments'] as int?) ?? 0,
+      completionRate: (json['completionRate'] as num).toDouble(),
+      apologizeRate: (json['apologizeRate'] as num).toDouble(),
+      overdueRate: (json['overdueRate'] as num?)?.toDouble() ?? 0.0,
+      assignmentsByUser: Map<String, int>.from(json['assignmentsByUser'] as Map),
+      completionsByUser: Map<String, int>.from(json['completionsByUser'] as Map),
+    );
   }
 
   /// Get user performance for date range
@@ -213,12 +342,16 @@ class StatisticsRepository {
       final apologized = userAssignments
           .where((a) => a.status == AssignmentStatus.apologized)
           .length;
+      final overdue = userAssignments
+          .where((a) => a.status == AssignmentStatus.overdue)
+          .length;
 
       performances.add(UserPerformance(
         userId: entry.key,
         totalAssignments: total,
         completedAssignments: completed,
         apologizedAssignments: apologized,
+        overdueAssignments: overdue,
         completionRate: total > 0 ? (completed / total) * 100 : 0,
       ));
     }
@@ -247,6 +380,7 @@ class StatisticsRepository {
         totalAssignments: 0,
         completedAssignments: 0,
         apologizedAssignments: 0,
+        overdueAssignments: 0,
         completionRate: 0,
       );
     }

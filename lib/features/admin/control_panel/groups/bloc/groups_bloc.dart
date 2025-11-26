@@ -68,7 +68,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
         counts[group.id] = 0;
       }
     }
-    add(_MemberCountsLoaded(counts: counts));
+    if (!isClosed) add(_MemberCountsLoaded(counts: counts));
   }
 
   void _onMemberCountsLoaded(

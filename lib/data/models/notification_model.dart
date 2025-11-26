@@ -16,12 +16,18 @@ enum NotificationType {
   taskReactivated,
   @JsonValue('taskMarkedDone')
   taskMarkedDone,
+  @JsonValue('taskOverdue')
+  taskOverdue,
+  @JsonValue('deadlineWarning')
+  deadlineWarning,
   @JsonValue('recurringScheduled')
   recurringScheduled,
   @JsonValue('invitationAccepted')
   invitationAccepted,
   @JsonValue('roleChanged')
   roleChanged,
+  @JsonValue('noteReceived')
+  noteReceived,
 }
 
 /// Extension methods for NotificationType
@@ -38,12 +44,18 @@ extension NotificationTypeX on NotificationType {
         return 'taskReactivated';
       case NotificationType.taskMarkedDone:
         return 'taskMarkedDone';
+      case NotificationType.taskOverdue:
+        return 'taskOverdue';
+      case NotificationType.deadlineWarning:
+        return 'deadlineWarning';
       case NotificationType.recurringScheduled:
         return 'recurringScheduled';
       case NotificationType.invitationAccepted:
         return 'invitationAccepted';
       case NotificationType.roleChanged:
         return 'roleChanged';
+      case NotificationType.noteReceived:
+        return 'noteReceived';
     }
   }
 
@@ -59,12 +71,18 @@ extension NotificationTypeX on NotificationType {
         return 'refresh';
       case NotificationType.taskMarkedDone:
         return 'done_all';
+      case NotificationType.taskOverdue:
+        return 'error';
+      case NotificationType.deadlineWarning:
+        return 'schedule';
       case NotificationType.recurringScheduled:
         return 'repeat';
       case NotificationType.invitationAccepted:
         return 'person_add';
       case NotificationType.roleChanged:
         return 'swap_horiz';
+      case NotificationType.noteReceived:
+        return 'chat_bubble';
     }
   }
 
@@ -80,12 +98,18 @@ extension NotificationTypeX on NotificationType {
         return '#8B5CF6'; // Purple
       case NotificationType.taskMarkedDone:
         return '#10B981'; // Green
+      case NotificationType.taskOverdue:
+        return '#EF4444'; // Red
+      case NotificationType.deadlineWarning:
+        return '#F59E0B'; // Orange/Amber
       case NotificationType.recurringScheduled:
         return '#14B8A6'; // Teal
       case NotificationType.invitationAccepted:
         return '#6366F1'; // Indigo
       case NotificationType.roleChanged:
         return '#F59E0B'; // Amber
+      case NotificationType.noteReceived:
+        return '#3B82F6'; // Blue
     }
   }
 }

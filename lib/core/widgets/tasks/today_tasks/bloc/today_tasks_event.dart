@@ -29,3 +29,13 @@ class TodayTasksRefreshRequested extends TodayTasksEvent {
   @override
   List<Object?> get props => [creatorId];
 }
+
+/// Internal event: Settings changed, refresh tasks with new deadline
+class _TodayTasksSettingsChanged extends TodayTasksEvent {
+  final SettingsModel settings;
+
+  const _TodayTasksSettingsChanged(this.settings);
+
+  @override
+  List<Object?> get props => [settings];
+}

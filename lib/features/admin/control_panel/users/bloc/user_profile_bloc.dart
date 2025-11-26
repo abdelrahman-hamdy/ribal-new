@@ -66,9 +66,6 @@ class UserProfileBloc extends Bloc<UserProfileEvent, UserProfileState> {
   final GroupRepository _groupRepository;
   final NotificationRepository _notificationRepository;
 
-  StreamSubscription? _userSubscription;
-  StreamSubscription? _assignmentsSubscription;
-
   UserProfileBloc(
     this._userRepository,
     this._statisticsRepository,
@@ -78,15 +75,12 @@ class UserProfileBloc extends Bloc<UserProfileEvent, UserProfileState> {
     this._notificationRepository,
   ) : super(UserProfileState.initial()) {
     on<UserProfileLoadRequested>(_onLoadRequested);
-    on<_UserDataReceived>(_onUserDataReceived);
-    on<_AssignmentsDataReceived>(_onAssignmentsDataReceived);
     on<UserProfileTimeFilterChanged>(_onTimeFilterChanged);
     on<UserProfileMarkAssignmentDone>(_onMarkAssignmentDone);
     on<_UserProfileError>(_onError);
     on<UserProfileRoleConversionRequested>(_onRoleConversionRequested);
     on<UserProfileManagerGroupsUpdated>(_onManagerGroupsUpdated);
     on<UserProfileGroupsLoadRequested>(_onGroupsLoadRequested);
-    on<_GroupsDataReceived>(_onGroupsDataReceived);
   }
 
   Future<void> _onLoadRequested(
@@ -99,63 +93,90 @@ class UserProfileBloc extends Bloc<UserProfileEvent, UserProfileState> {
       isLoadingStats: true,
       userId: event.userId,
       currentUserId: event.currentUserId,
+      currentUserRole: event.currentUserRole,
       clearError: true,
     ));
 
-    // Cancel previous subscriptions
-    await _userSubscription?.cancel();
-    await _assignmentsSubscription?.cancel();
+    try {
+      // Use cache-first strategy - NO STREAMS!
 
-    // Stream user data
-    _userSubscription = _userRepository.streamUser(event.userId).listen(
-          (user) => add(_UserDataReceived(user: user)),
-          onError: (error) => add(const _UserProfileError('فشل في تحميل بيانات المستخدم')),
-        );
+      // Load user data
+      final user = await _userRepository.getUserById(event.userId);
+      if (user == null) {
+        emit(state.copyWith(
+          isLoading: false,
+          isLoadingAssignments: false,
+          isLoadingStats: false,
+          errorMessage: 'المستخدم غير موجود',
+        ));
+        return;
+      }
 
-    // Stream today's assignments (using KSA timezone)
-    _assignmentsSubscription = _assignmentRepository
-        .streamAssignmentsForUserOnDate(
-          userId: event.userId,
-          date: KsaTimezone.today(),
-        )
-        .listen(
-          (assignments) => add(_AssignmentsDataReceived(assignments: assignments)),
-          onError: (error) => add(const _UserProfileError('فشل في تحميل المهام')),
-        );
+      // Load today's assignments
+      final assignments = await _assignmentRepository.getAssignmentsForUserOnDate(
+        userId: event.userId,
+        date: KsaTimezone.today(),
+      );
 
-    // Load statistics
-    await _loadStatistics(emit, event.userId, state.timeFilter);
-  }
+      // Load task details for assignments (avoid N+1 query)
+      final assignmentsWithTasks = await _fetchTaskDetailsForAssignments(assignments);
 
-  Future<void> _onUserDataReceived(
-    _UserDataReceived event,
-    Emitter<UserProfileState> emit,
-  ) async {
-    if (event.user == null) {
+      emit(state.copyWith(
+        user: user,
+        todayAssignments: assignmentsWithTasks,
+        isLoading: false,
+        isLoadingAssignments: false,
+      ));
+
+      // Load statistics
+      await _loadStatistics(emit, event.userId, state.timeFilter);
+    } catch (e) {
       emit(state.copyWith(
         isLoading: false,
-        errorMessage: 'المستخدم غير موجود',
+        isLoadingAssignments: false,
+        isLoadingStats: false,
+        errorMessage: 'فشل في تحميل بيانات المستخدم',
       ));
-      return;
     }
-
-    emit(state.copyWith(
-      user: event.user,
-      isLoading: false,
-    ));
   }
 
-  Future<void> _onAssignmentsDataReceived(
-    _AssignmentsDataReceived event,
-    Emitter<UserProfileState> emit,
+  /// Fetch task details for a list of assignments (cache-optimized)
+  Future<List<AssignmentWithTask>> _fetchTaskDetailsForAssignments(
+    List<AssignmentModel> assignments,
   ) async {
-    // Load task details for each assignment
-    final assignmentsWithTasks = <AssignmentWithTask>[];
+    if (assignments.isEmpty) return [];
 
-    for (final assignment in event.assignments) {
-      final task = await _taskRepository.getTaskById(assignment.taskId);
+    final result = <AssignmentWithTask>[];
+
+    // Get unique task IDs
+    final taskIds = assignments.map((a) => a.taskId).toSet().toList();
+
+    // Batch fetch all tasks
+    final tasks = await Future.wait(
+      taskIds.map((id) => _taskRepository.getTaskById(id)),
+    );
+    final tasksMap = {for (var task in tasks.whereType()) task.id: task};
+
+    // Get unique creator IDs
+    final creatorIds = tasks
+        .whereType()
+        .map((t) => t.createdBy)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList()
+        .cast<String>(); // Explicitly cast to List<String>
+
+    // Batch fetch all creators
+    final creatorsMap = await _userRepository.getUsersByIds(creatorIds);
+
+    // Build AssignmentWithTask for each assignment
+    for (final assignment in assignments) {
+      final task = tasksMap[assignment.taskId];
       if (task != null) {
-        assignmentsWithTasks.add(AssignmentWithTask(
+        final creator = task.createdBy.isNotEmpty ? creatorsMap[task.createdBy] : null;
+        final creatorName = creator?.fullName ?? 'غير معروف';
+
+        result.add(AssignmentWithTask(
           assignment: assignment,
           taskTitle: task.title,
           taskDescription: task.description,
@@ -163,14 +184,12 @@ class UserProfileBloc extends Bloc<UserProfileEvent, UserProfileState> {
           taskAttachmentUrl: task.attachmentUrl,
           taskAttachmentRequired: task.attachmentRequired,
           taskCreatorId: task.createdBy,
+          taskCreatorName: creatorName,
         ));
       }
     }
 
-    emit(state.copyWith(
-      todayAssignments: assignmentsWithTasks,
-      isLoadingAssignments: false,
-    ));
+    return result;
   }
 
   Future<void> _onTimeFilterChanged(
@@ -376,18 +395,9 @@ class UserProfileBloc extends Bloc<UserProfileEvent, UserProfileState> {
     }
   }
 
-  /// Handle groups data received
-  void _onGroupsDataReceived(
-    _GroupsDataReceived event,
-    Emitter<UserProfileState> emit,
-  ) {
-    emit(state.copyWith(allGroups: event.groups));
-  }
-
   @override
   Future<void> close() {
-    _userSubscription?.cancel();
-    _assignmentsSubscription?.cancel();
+    // No streams to cancel anymore
     return super.close();
   }
 }

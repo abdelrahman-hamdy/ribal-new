@@ -11,6 +11,7 @@ import '../../../../core/widgets/buttons/ribal_button.dart';
 import '../../../../core/widgets/notifications/notification_badge.dart';
 import '../../../../core/widgets/tasks/today_tasks/today_stats_grid.dart';
 import '../../../../core/widgets/tasks/today_tasks/today_tasks_section.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../auth/bloc/auth_bloc.dart';
 
 class AdminHomePage extends StatefulWidget {
@@ -39,88 +40,96 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return BlocProvider(
       key: _blocKey,
       create: (context) => getIt<TodayTasksBloc>()..add(const TodayTasksLoadRequested()),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('الرئيسية'),
-          actions: [
-            BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, state) {
-                if (state is AuthAuthenticated) {
-                  return NotificationBadge(
-                    userId: state.user.id,
-                    onTap: () => context.push(Routes.notifications),
-                  );
-                }
-                return IconButton(
-                  icon: const Icon(Icons.notifications_outlined),
-                  onPressed: () => context.push(Routes.notifications),
-                );
-              },
-            ),
-          ],
-        ),
-        body: RefreshIndicator(
-          onRefresh: _handleRefresh,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: AppSpacing.pagePadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Welcome message
+      child: Builder(
+        builder: (context) {
+          final l10n = AppLocalizations.of(context)!;
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(l10n.nav_home),
+              actions: [
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
-                    final name = state is AuthAuthenticated
-                        ? state.user.firstName
-                        : 'مدير النظام';
-                    return Text(
-                      'مرحباً، $name',
-                      style: AppTypography.displaySmall,
+                    if (state is AuthAuthenticated) {
+                      return NotificationBadge(
+                        userId: state.user.id,
+                        onTap: () => context.push(Routes.notifications),
+                      );
+                    }
+                    return IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      onPressed: () => context.push(Routes.notifications),
                     );
                   },
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'نظرة عامة على المهام',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Stats grid - real data from TodayTasksBloc
-                BlocBuilder<TodayTasksBloc, TodayTasksState>(
-                  builder: (context, state) {
-                    return TodayStatsGrid(
-                      totalTasksCount: state.totalTasksCount,
-                      totalAssignmentsCount: state.totalAssignmentsCount,
-                      completedTasksCount: state.totalCompletedCount,
-                      pendingCount: state.totalPendingCount,
-                      overdueCount: state.totalApologizedCount + state.totalOverdueCount,
-                      onViewFullStats: () => context.push(Routes.adminStatistics),
-                    );
-                  },
-                ),
-                const SizedBox(height: AppSpacing.xl),
-
-                // Create task button
-                RibalButton(
-                  text: 'إنشاء مهمة جديدة',
-                  onPressed: () => context.push(Routes.adminTaskCreate),
-                  icon: Icons.add_task,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-
-                // Today's tasks section (uses external bloc)
-                TodayTasksSection(
-                  getTaskDetailRoute: Routes.adminTaskDetailPath,
-                  onNavigate: (route) => context.push(route),
-                  useExternalBloc: true,
                 ),
               ],
             ),
-          ),
-        ),
+            body: RefreshIndicator(
+              onRefresh: _handleRefresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: AppSpacing.pagePadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Welcome message
+                    BlocBuilder<AuthBloc, AuthState>(
+                      builder: (context, state) {
+                        final name = state is AuthAuthenticated
+                            ? state.user.firstName
+                            : l10n.user_roleAdmin;
+                        return Text(
+                          l10n.user_welcomeName(name),
+                          style: AppTypography.displaySmall.copyWith(
+                            color: context.colors.textPrimary,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      l10n.statistics_overview,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Stats grid - real data from TodayTasksBloc
+                    BlocBuilder<TodayTasksBloc, TodayTasksState>(
+                      builder: (context, state) {
+                        return TodayStatsGrid(
+                          isLoading: !state.hasLoadedOnce,
+                          totalTasksCount: state.totalTasksCount,
+                          totalAssignmentsCount: state.totalAssignmentsCount,
+                          completedTasksCount: state.totalCompletedCount,
+                          pendingCount: state.totalPendingCount,
+                          overdueCount: state.totalApologizedCount + state.totalOverdueCount,
+                          onViewFullStats: () => context.push(Routes.adminStatistics),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // Create task button
+                    RibalButton(
+                      text: l10n.task_createNew,
+                      onPressed: () => context.push(Routes.adminTaskCreate),
+                      icon: Icons.add_task,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // Today's tasks section (uses external bloc)
+                    TodayTasksSection(
+                      getTaskDetailRoute: Routes.adminTaskDetailPath,
+                      onNavigate: (route) => context.push(route),
+                      useExternalBloc: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

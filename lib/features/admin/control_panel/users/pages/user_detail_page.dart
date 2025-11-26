@@ -6,12 +6,14 @@ import '../../../../../app/di/injection.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/widgets/animated/animated_count.dart';
 import '../../../../../core/widgets/avatar/ribal_avatar.dart';
 import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../core/widgets/feedback/loading_state.dart';
 import '../../../../../data/models/assignment_model.dart';
 import '../../../../../data/models/group_model.dart';
 import '../../../../../data/models/user_model.dart';
+import '../../../../../l10n/generated/app_localizations.dart';
 import '../../../../auth/bloc/auth_bloc.dart';
 import '../bloc/user_profile_bloc.dart';
 
@@ -25,6 +27,7 @@ class UserDetailPage extends StatelessWidget {
     final authState = context.read<AuthBloc>().state;
     final currentUser = authState is AuthAuthenticated ? authState.user : null;
     final currentUserId = currentUser?.id ?? '';
+    final currentUserRole = currentUser?.role ?? UserRole.employee;
     final isCurrentUserAdmin = currentUser?.role == UserRole.admin;
 
     return BlocProvider(
@@ -32,10 +35,12 @@ class UserDetailPage extends StatelessWidget {
         ..add(UserProfileLoadRequested(
           userId: userId,
           currentUserId: currentUserId,
+          currentUserRole: currentUserRole,
         )),
       child: _UserDetailPageContent(
         isCurrentUserAdmin: isCurrentUserAdmin,
         currentUserId: currentUserId,
+        currentUserRole: currentUserRole,
       ),
     );
   }
@@ -44,17 +49,20 @@ class UserDetailPage extends StatelessWidget {
 class _UserDetailPageContent extends StatelessWidget {
   final bool isCurrentUserAdmin;
   final String currentUserId;
+  final UserRole currentUserRole;
 
   const _UserDetailPageContent({
     required this.isCurrentUserAdmin,
     required this.currentUserId,
+    required this.currentUserRole,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الملف الشخصي'),
+        title: Text(l10n.profile_title),
       ),
       body: BlocConsumer<UserProfileBloc, UserProfileState>(
         listenWhen: (previous, current) {
@@ -82,14 +90,14 @@ class _UserDetailPageContent extends StatelessWidget {
         },
         builder: (context, state) {
           if (state.isLoading && state.user == null) {
-            return const LoadingState(message: 'جاري تحميل الملف الشخصي...');
+            return LoadingState(message: l10n.user_loadingProfile);
           }
 
           if (state.user == null) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.person_off,
-              title: 'المستخدم غير موجود',
-              message: 'لم يتم العثور على بيانات المستخدم',
+              title: l10n.user_notFound,
+              message: l10n.user_notFoundMessage,
             );
           }
 
@@ -98,6 +106,7 @@ class _UserDetailPageContent extends StatelessWidget {
               context.read<UserProfileBloc>().add(UserProfileLoadRequested(
                     userId: state.userId!,
                     currentUserId: state.currentUserId!,
+                    currentUserRole: currentUserRole,
                   ));
             },
             child: ListView(
@@ -151,8 +160,20 @@ class _UserHeader extends StatelessWidget {
 
   const _UserHeader({required this.user});
 
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         // Avatar
@@ -166,7 +187,9 @@ class _UserHeader extends StatelessWidget {
         // Name
         Text(
           user.fullName,
-          style: AppTypography.headlineMedium,
+          style: AppTypography.headlineMedium.copyWith(
+            color: context.colors.textPrimary,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -175,7 +198,7 @@ class _UserHeader extends StatelessWidget {
         Text(
           user.email,
           style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -200,7 +223,7 @@ class _UserHeader extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                user.role.displayNameAr,
+                _getRoleDisplayName(l10n, user.role),
                 style: AppTypography.labelMedium.copyWith(
                   color: AppColors.getRoleColor(user.role.name),
                   fontWeight: FontWeight.w600,
@@ -238,6 +261,7 @@ class _StatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -246,9 +270,10 @@ class _StatsSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'الإحصائيات',
+              l10n.stats_statistics,
               style: AppTypography.titleLarge.copyWith(
                 fontWeight: FontWeight.w600,
+                color: context.colors.textPrimary,
               ),
             ),
             _TimeFilterDropdown(currentFilter: timeFilter),
@@ -256,16 +281,8 @@ class _StatsSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // Stats cards
-        if (isLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(AppSpacing.xl),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else
-          _StatsGrid(stats: stats),
+        // Stats cards - always show with animated counts
+        _StatsGrid(stats: stats, isLoading: isLoading),
       ],
     );
   }
@@ -276,17 +293,29 @@ class _TimeFilterDropdown extends StatelessWidget {
 
   const _TimeFilterDropdown({required this.currentFilter});
 
+  String _getFilterDisplayName(AppLocalizations l10n, TimeFilter filter) {
+    switch (filter) {
+      case TimeFilter.today:
+        return l10n.timeFilter_today;
+      case TimeFilter.week:
+        return l10n.timeFilter_thisWeek;
+      case TimeFilter.month:
+        return l10n.timeFilter_thisMonth;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.smd,
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: context.colors.surfaceVariant,
         borderRadius: AppSpacing.borderRadiusSm,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<TimeFilter>(
@@ -297,7 +326,7 @@ class _TimeFilterDropdown extends StatelessWidget {
             return DropdownMenuItem(
               value: filter,
               child: Text(
-                filter.displayNameAr,
+                _getFilterDisplayName(l10n, filter),
                 style: AppTypography.labelMedium,
               ),
             );
@@ -317,22 +346,24 @@ class _TimeFilterDropdown extends StatelessWidget {
 
 class _StatsGrid extends StatelessWidget {
   final dynamic stats;
+  final bool isLoading;
 
-  const _StatsGrid({required this.stats});
+  const _StatsGrid({required this.stats, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final totalAssignments = stats?.totalAssignments ?? 0;
     final completedAssignments = stats?.completedAssignments ?? 0;
     final apologizedAssignments = stats?.apologizedAssignments ?? 0;
-    final completionRate = stats?.completionRate ?? 0.0;
+    final completionRate = (stats?.completionRate ?? 0.0) as double;
 
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         children: [
@@ -340,19 +371,21 @@ class _StatsGrid extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatCard(
-                  label: 'إجمالي المهام',
-                  value: totalAssignments.toString(),
+                  label: l10n.stats_totalTasks,
+                  count: totalAssignments,
                   color: AppColors.primary,
                   icon: Icons.assignment,
+                  isLoading: isLoading,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: _StatCard(
-                  label: 'المكتملة',
-                  value: completedAssignments.toString(),
+                  label: l10n.stats_completed,
+                  count: completedAssignments,
                   color: AppColors.success,
                   icon: Icons.check_circle,
+                  isLoading: isLoading,
                 ),
               ),
             ],
@@ -362,19 +395,22 @@ class _StatsGrid extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatCard(
-                  label: 'معتذر عنها',
-                  value: apologizedAssignments.toString(),
-                  color: AppColors.warning,
+                  label: l10n.stats_apologized,
+                  count: apologizedAssignments,
+                  color: AppColors.error,
                   icon: Icons.cancel,
+                  isLoading: isLoading,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: _StatCard(
-                  label: 'نسبة الإنجاز',
-                  value: '${completionRate.toStringAsFixed(0)}%',
+                  label: l10n.stats_completionRate,
+                  count: completionRate.toInt(),
+                  suffix: '%',
                   color: AppColors.info,
                   icon: Icons.trending_up,
+                  isLoading: isLoading,
                 ),
               ),
             ],
@@ -387,23 +423,32 @@ class _StatsGrid extends StatelessWidget {
 
 class _StatCard extends StatelessWidget {
   final String label;
-  final String value;
+  final int count;
   final Color color;
   final IconData icon;
+  final bool isLoading;
+  final String? suffix;
 
   const _StatCard({
     required this.label,
-    required this.value,
+    required this.count,
     required this.color,
     required this.icon,
+    required this.isLoading,
+    this.suffix,
   });
 
   @override
   Widget build(BuildContext context) {
+    final valueStyle = AppTypography.headlineSmall.copyWith(
+      color: color,
+      fontWeight: FontWeight.bold,
+    );
+
     return Container(
       padding: AppSpacing.cardPaddingSm,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: AppSpacing.borderRadiusSm,
       ),
       child: Row(
@@ -411,7 +456,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 20),
@@ -421,17 +466,16 @@ class _StatCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
-                  style: AppTypography.headlineSmall.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
+                AnimatedStatCount(
+                  isLoading: isLoading,
+                  count: count,
+                  style: valueStyle,
+                  suffix: suffix,
                 ),
                 Text(
                   label,
                   style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -460,15 +504,17 @@ class _TodayAssignmentsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              'مهام اليوم',
+              l10n.task_todayAssignments,
               style: AppTypography.titleLarge.copyWith(
                 fontWeight: FontWeight.w600,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -478,11 +524,12 @@ class _TodayAssignmentsSection extends StatelessWidget {
                 vertical: AppSpacing.xxs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.primarySurface,
+                color: context.colors.primarySurface,
                 borderRadius: AppSpacing.borderRadiusFull,
               ),
-              child: Text(
-                assignments.length.toString(),
+              child: AnimatedStatCount(
+                isLoading: isLoading,
+                count: assignments.length,
                 style: AppTypography.labelSmall.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
@@ -509,12 +556,12 @@ class _TodayAssignmentsSection extends StatelessWidget {
           Container(
             padding: AppSpacing.cardPadding,
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
+              color: context.colors.surfaceVariant,
               borderRadius: AppSpacing.borderRadiusMd,
             ),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.check_circle_outline,
                   color: AppColors.success,
                   size: 32,
@@ -525,13 +572,15 @@ class _TodayAssignmentsSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'لا توجد مهام اليوم',
-                        style: AppTypography.titleMedium,
+                        l10n.task_noTasksToday,
+                        style: AppTypography.titleMedium.copyWith(
+                          color: context.colors.textPrimary,
+                        ),
                       ),
                       Text(
-                        'لم يتم تعيين أي مهام لهذا اليوم',
+                        l10n.task_noTasksTodaySubtitle,
                         style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
@@ -572,100 +621,185 @@ class _AssignmentCard extends StatelessWidget {
     this.isLoading = false,
   });
 
+  Color _getStatusColor(AssignmentStatus status) {
+    switch (status) {
+      case AssignmentStatus.completed:
+        return AppColors.success;
+      case AssignmentStatus.pending:
+        return AppColors.warning;
+      case AssignmentStatus.apologized:
+      case AssignmentStatus.overdue:
+        return AppColors.error;
+    }
+  }
+
+  String _getStatusDisplayName(AppLocalizations l10n, AssignmentStatus status) {
+    switch (status) {
+      case AssignmentStatus.pending:
+        return l10n.assignment_statusPending;
+      case AssignmentStatus.completed:
+        return l10n.assignment_statusCompleted;
+      case AssignmentStatus.apologized:
+        return l10n.assignment_statusApologized;
+      case AssignmentStatus.overdue:
+        return l10n.assignment_statusOverdue;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final status = assignment.assignment.status;
-    final statusColor = AppColors.getStatusColor(status.name);
-    final statusSurfaceColor = AppColors.getStatusSurfaceColor(status.name);
+    final statusColor = _getStatusColor(status);
+    final isCompleted = status == AssignmentStatus.completed;
+    final canShowMarkDone = !isCompleted && canMarkDone;
 
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Main row: Task info and mark done button
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Task info
               Expanded(
-                child: Text(
-                  assignment.taskTitle,
-                  style: AppTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Status badge (moved to top)
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          _getStatusDisplayName(l10n, status),
+                          style: AppTypography.bodySmall.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (assignment.assignment.isCompletedByCreator) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            l10n.assignment_byAdmin,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: context.colors.textTertiary,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    // Task title
+                    Text(
+                      assignment.taskTitle,
+                      style: AppTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // Task description
+                    if (assignment.taskDescription.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        assignment.taskDescription,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: context.colors.textSecondary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    // Task creator (moved to bottom)
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 14,
+                          color: context.colors.textTertiary,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          assignment.taskCreatorName,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: context.colors.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Container(
-                padding: AppSpacing.chipPadding,
-                decoration: BoxDecoration(
-                  color: statusSurfaceColor,
-                  borderRadius: AppSpacing.borderRadiusFull,
-                ),
-                child: Text(
-                  status.displayNameAr,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: statusColor,
-                    fontWeight: FontWeight.w600,
+
+              // Mark done button (inline with task info)
+              if (canShowMarkDone) ...[
+                const SizedBox(width: AppSpacing.md),
+                GestureDetector(
+                  onTap: isLoading
+                      ? null
+                      : () {
+                          context.read<UserProfileBloc>().add(
+                                UserProfileMarkAssignmentDone(
+                                  assignmentId: assignment.assignment.id,
+                                ),
+                              );
+                        },
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.smd,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: AppColors.success,
+                      borderRadius: AppSpacing.borderRadiusSm,
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check, size: 16, color: Colors.white),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                l10n.common_done,
+                                style: AppTypography.labelMedium.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
-          if (assignment.taskDescription.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              assignment.taskDescription,
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          if (status == AssignmentStatus.pending && canMarkDone) ...[
-            const SizedBox(height: AppSpacing.smd),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: isLoading
-                    ? null
-                    : () {
-                        context.read<UserProfileBloc>().add(
-                              UserProfileMarkAssignmentDone(
-                                assignmentId: assignment.assignment.id,
-                              ),
-                            );
-                      },
-                icon: isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.check, size: 18),
-                label: isLoading ? const SizedBox.shrink() : const Text('تم'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.success.withValues(alpha: 0.7),
-                  disabledForegroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -681,9 +815,9 @@ class _AssignmentCardSkeleton extends StatelessWidget {
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,22 +855,24 @@ class _AdminActionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'إجراءات المسؤول',
+          l10n.admin_adminActions,
           style: AppTypography.titleLarge.copyWith(
             fontWeight: FontWeight.w600,
+            color: context.colors.textPrimary,
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         Container(
           padding: AppSpacing.cardPadding,
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.colors.surface,
             borderRadius: AppSpacing.borderRadiusMd,
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           child: Column(
             children: [
@@ -745,11 +881,11 @@ class _AdminActionsSection extends StatelessWidget {
                 icon: Icons.swap_horiz,
                 iconColor: AppColors.warning,
                 title: user.role == UserRole.employee
-                    ? 'ترقية إلى مشرف'
-                    : 'تحويل إلى موظف',
+                    ? l10n.user_promoteToManager
+                    : l10n.user_demoteToEmployee,
                 subtitle: user.role == UserRole.employee
-                    ? 'سيتمكن المستخدم من إنشاء المهام وإدارة الفرق'
-                    : 'سيفقد المستخدم صلاحيات الإشراف',
+                    ? l10n.user_promoteDescription
+                    : l10n.user_demoteDescription,
                 isLoading: isLoading,
                 onTap: () => _showRoleConversionDialog(context),
               ),
@@ -760,12 +896,12 @@ class _AdminActionsSection extends StatelessWidget {
                 _AdminActionButton(
                   icon: Icons.group_work,
                   iconColor: AppColors.info,
-                  title: 'إدارة المجموعات',
+                  title: l10n.user_manageGroups,
                   subtitle: user.canAssignToAll
-                      ? 'يمكنه التعيين لجميع الموظفين'
+                      ? l10n.user_canAssignAll
                       : user.managedGroupIds.isEmpty
-                          ? 'لم يتم تعيين مجموعات بعد'
-                          : 'يدير ${user.managedGroupIds.length} مجموعة',
+                          ? l10n.user_noManagedGroups
+                          : l10n.user_managesGroups(user.managedGroupIds.length),
                   isLoading: isGroupsLoading,
                   onTap: () => _showGroupAssignmentDialog(context),
                 ),
@@ -778,19 +914,22 @@ class _AdminActionsSection extends StatelessWidget {
   }
 
   void _showRoleConversionDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final newRole =
         user.role == UserRole.employee ? UserRole.manager : UserRole.employee;
-    final newRoleName = newRole == UserRole.manager ? 'مشرف' : 'موظف';
+    final newRoleName = newRole == UserRole.manager
+        ? l10n.user_roleManager
+        : l10n.user_roleEmployee;
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد تغيير الدور'),
+        title: Text(l10n.user_changeRoleTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('هل تريد تغيير دور ${user.fullName} إلى $newRoleName؟'),
+            Text(l10n.user_changeRoleConfirm(user.fullName, newRoleName)),
             const SizedBox(height: AppSpacing.md),
             Container(
               padding: AppSpacing.cardPaddingSm,
@@ -800,7 +939,7 @@ class _AdminActionsSection extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.info_outline,
                     color: AppColors.warning,
                     size: 20,
@@ -809,8 +948,8 @@ class _AdminActionsSection extends StatelessWidget {
                   Expanded(
                     child: Text(
                       newRole == UserRole.manager
-                          ? 'سيتم إزالة المستخدم من مجموعته الحالية وسيتمكن من إنشاء المهام بعد تعيين مجموعات له.'
-                          : 'سيفقد المستخدم صلاحيات الإشراف. المهام التي أنشأها ستبقى كما هي.',
+                          ? l10n.user_promoteWarning
+                          : l10n.user_demoteWarning,
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.warning,
                       ),
@@ -821,26 +960,46 @@ class _AdminActionsSection extends StatelessWidget {
             ),
           ],
         ),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.read<UserProfileBloc>().add(
-                    UserProfileRoleConversionRequested(
-                      userId: user.id,
-                      newRole: newRole,
-                    ),
-                  );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('تأكيد'),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  context.read<UserProfileBloc>().add(
+                        UserProfileRoleConversionRequested(
+                          userId: user.id,
+                          newRole: newRole,
+                        ),
+                      );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.warning,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.smd),
+                ),
+                child: Text(l10n.common_confirm),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.smd),
+                  ),
+                  child: Text(l10n.common_cancel),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -909,12 +1068,13 @@ class _AdminActionButton extends StatelessWidget {
                     title,
                     style: AppTypography.titleMedium.copyWith(
                       fontWeight: FontWeight.w600,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   Text(
                     subtitle,
                     style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
@@ -928,8 +1088,9 @@ class _AdminActionButton extends StatelessWidget {
               )
             else
               Icon(
-                Icons.chevron_left,
-                color: AppColors.textSecondary,
+                Icons.arrow_forward_ios,
+                color: context.colors.textSecondary,
+                size: 16,
               ),
           ],
         ),
@@ -963,12 +1124,13 @@ class _GroupAssignmentBottomSheetState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocBuilder<UserProfileBloc, UserProfileState>(
       builder: (context, state) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: DraggableScrollableSheet(
             initialChildSize: 0.7,
@@ -984,7 +1146,7 @@ class _GroupAssignmentBottomSheetState
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.border,
+                      color: context.colors.border,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -995,9 +1157,10 @@ class _GroupAssignmentBottomSheetState
                       children: [
                         Expanded(
                           child: Text(
-                            'إدارة مجموعات ${widget.user.fullName}',
+                            l10n.user_manageGroupsFor(widget.user.fullName),
                             style: AppTypography.titleLarge.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: context.colors.textPrimary,
                             ),
                           ),
                         ),
@@ -1028,18 +1191,18 @@ class _GroupAssignmentBottomSheetState
                                     }
                                   });
                                 },
-                                title: const Text('تعيين لجميع الموظفين'),
-                                subtitle: const Text(
-                                  'السماح للمشرف بتعيين المهام لجميع الموظفين',
-                                ),
+                                title: Text(l10n.user_assignToAllEmployees),
+                                subtitle: Text(l10n.user_assignToAllDescription),
+                                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
                                 activeColor: AppColors.primary,
                               ),
                               if (!_canAssignToAll) ...[
                                 const Divider(height: AppSpacing.xl),
                                 Text(
-                                  'اختر المجموعات',
+                                  l10n.user_selectGroups,
                                   style: AppTypography.titleMedium.copyWith(
                                     fontWeight: FontWeight.w600,
+                                    color: context.colors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
@@ -1047,18 +1210,18 @@ class _GroupAssignmentBottomSheetState
                                   Container(
                                     padding: AppSpacing.cardPadding,
                                     decoration: BoxDecoration(
-                                      color: AppColors.surfaceVariant,
+                                      color: context.colors.surfaceVariant,
                                       borderRadius: AppSpacing.borderRadiusSm,
                                     ),
                                     child: Row(
                                       children: [
                                         Icon(
                                           Icons.info_outline,
-                                          color: AppColors.textSecondary,
+                                          color: context.colors.textSecondary,
                                         ),
                                         const SizedBox(width: AppSpacing.sm),
-                                        const Expanded(
-                                          child: Text('لا توجد مجموعات متاحة'),
+                                        Expanded(
+                                          child: Text(l10n.user_noGroupsAvailable),
                                         ),
                                       ],
                                     ),
@@ -1092,7 +1255,7 @@ class _GroupAssignmentBottomSheetState
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.colors.surface,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.05),
@@ -1136,7 +1299,7 @@ class _GroupAssignmentBottomSheetState
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Text('حفظ التغييرات'),
+                              : Text(l10n.common_saveChanges),
                         ),
                       ),
                     ),

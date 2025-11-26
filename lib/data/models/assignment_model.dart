@@ -12,6 +12,8 @@ enum AssignmentStatus {
   completed,
   @JsonValue('apologized')
   apologized,
+  @JsonValue('overdue')
+  overdue,
 }
 
 /// Extension methods for AssignmentStatus
@@ -24,6 +26,8 @@ extension AssignmentStatusX on AssignmentStatus {
         return 'completed';
       case AssignmentStatus.apologized:
         return 'apologized';
+      case AssignmentStatus.overdue:
+        return 'overdue';
     }
   }
 
@@ -35,12 +39,18 @@ extension AssignmentStatusX on AssignmentStatus {
         return 'مكتملة';
       case AssignmentStatus.apologized:
         return 'معتذر';
+      case AssignmentStatus.overdue:
+        return 'متأخر';
     }
   }
 
   bool get isPending => this == AssignmentStatus.pending;
   bool get isCompleted => this == AssignmentStatus.completed;
   bool get isApologized => this == AssignmentStatus.apologized;
+  bool get isOverdue => this == AssignmentStatus.overdue;
+
+  /// Whether this is a "failed" status (apologized or overdue)
+  bool get isFailed => isApologized || isOverdue;
 }
 
 /// Assignment model
@@ -56,6 +66,7 @@ class AssignmentModel with _$AssignmentModel {
     String? apologizeMessage,
     DateTime? completedAt,
     DateTime? apologizedAt,
+    DateTime? overdueAt,
     String? markedDoneBy,
     String? attachmentUrl,
     required DateTime scheduledDate,
@@ -90,6 +101,9 @@ class AssignmentModel with _$AssignmentModel {
       if (data['apologizedAt'] != null)
         'apologizedAt':
             (data['apologizedAt'] as Timestamp).toDate().toIso8601String(),
+      if (data['overdueAt'] != null)
+        'overdueAt':
+            (data['overdueAt'] as Timestamp).toDate().toIso8601String(),
     });
   }
 
@@ -99,8 +113,8 @@ class AssignmentModel with _$AssignmentModel {
   /// Is completed by creator
   bool get isCompletedByCreator => markedDoneBy != null && markedDoneBy != userId;
 
-  /// Can be reactivated (only if apologized)
-  bool get canReactivate => status.isApologized;
+  /// Can be reactivated (only if apologized - overdue is locked)
+  bool get canReactivate => status.isApologized && !status.isOverdue;
 
   /// Has apologize message
   bool get hasApologizeMessage =>
@@ -120,6 +134,7 @@ class AssignmentModel with _$AssignmentModel {
           completedAt != null ? Timestamp.fromDate(completedAt!) : null,
       'apologizedAt':
           apologizedAt != null ? Timestamp.fromDate(apologizedAt!) : null,
+      'overdueAt': overdueAt != null ? Timestamp.fromDate(overdueAt!) : null,
       'markedDoneBy': markedDoneBy,
       'attachmentUrl': attachmentUrl,
       'scheduledDate': Timestamp.fromDate(scheduledDate),
@@ -139,5 +154,6 @@ class AssignmentWithTask with _$AssignmentWithTask {
     String? taskAttachmentUrl,
     @Default(false) bool taskAttachmentRequired,
     required String taskCreatorId,
+    required String taskCreatorName,
   }) = _AssignmentWithTask;
 }

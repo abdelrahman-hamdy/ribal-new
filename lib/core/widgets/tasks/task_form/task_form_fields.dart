@@ -81,7 +81,9 @@ class TaskFormFields extends StatelessWidget {
         // Labels section
         Text(
           'التصنيفات',
-          style: AppTypography.titleMedium,
+          style: AppTypography.titleMedium.copyWith(
+            color: context.colors.textPrimary,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         _LabelsSelector(
@@ -113,7 +115,9 @@ class TaskFormFields extends StatelessWidget {
         // Assignment target section
         Text(
           'تعيين المهمة إلى',
-          style: AppTypography.titleMedium,
+          style: AppTypography.titleMedium.copyWith(
+            color: context.colors.textPrimary,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         _AssignmentSelector(
@@ -167,18 +171,18 @@ class _LabelsSelector extends StatelessWidget {
       return Container(
         padding: AppSpacing.cardPadding,
         decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
+          color: context.colors.surfaceVariant,
           borderRadius: AppSpacing.borderRadiusMd,
         ),
         child: Row(
           children: [
-            const Icon(Icons.label_off_outlined, color: AppColors.textTertiary),
+            Icon(Icons.label_off_outlined, color: context.colors.textTertiary),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 'لا توجد تصنيفات متاحة',
                 style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ),
@@ -208,7 +212,7 @@ class _LabelsSelector extends StatelessWidget {
           ),
           selectedColor: labelColor.surfaceColor,
           side: BorderSide(
-            color: isSelected ? labelColor.color : AppColors.border,
+            color: isSelected ? labelColor.color : context.colors.border,
           ),
           onSelected: (selected) {
             final newList = List<String>.from(selectedLabelIds);
@@ -241,7 +245,7 @@ class _AssignmentSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
         borderRadius: AppSpacing.borderRadiusMd,
       ),
       child: Column(
@@ -329,7 +333,7 @@ class _GroupSelector extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
         borderRadius: AppSpacing.borderRadiusMd,
       ),
       child: Column(
@@ -339,7 +343,9 @@ class _GroupSelector extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Text(
               'اختر المجموعات:',
-              style: AppTypography.labelLarge,
+              style: AppTypography.labelLarge.copyWith(
+                color: context.colors.textPrimary,
+              ),
             ),
           ),
           const Divider(height: 1),

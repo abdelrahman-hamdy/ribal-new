@@ -15,6 +15,7 @@ import '../../../../data/models/task_model.dart';
 import '../../../../data/repositories/group_repository.dart';
 import '../../../../data/repositories/label_repository.dart';
 import '../../../../data/repositories/task_repository.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../bloc/tasks_bloc.dart';
 
 class TaskEditPage extends StatefulWidget {
@@ -42,7 +43,8 @@ class _TaskEditPageState extends State<TaskEditPage> {
   // Task state
   TaskModel? _task;
   bool _isLoadingTask = true;
-  String? _taskLoadError;
+  bool _taskNotFound = false;
+  bool _taskLoadFailed = false;
 
   // Form state
   bool _isRecurring = false;
@@ -76,7 +78,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
       if (task == null) {
         setState(() {
           _isLoadingTask = false;
-          _taskLoadError = 'المهمة غير موجودة';
+          _taskNotFound = true;
         });
         return;
       }
@@ -101,7 +103,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
       if (mounted) {
         setState(() {
           _isLoadingTask = false;
-          _taskLoadError = 'فشل في تحميل المهمة';
+          _taskLoadFailed = true;
         });
       }
     }
@@ -156,6 +158,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<TasksBloc, TasksState>(
       listener: (context, state) {
         if (state.successMessage != null && _isSubmitting) {
@@ -180,7 +183,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('تعديل المهمة'),
+          title: Text(l10n.task_edit),
         ),
         body: _buildBody(),
       ),
@@ -188,21 +191,22 @@ class _TaskEditPageState extends State<TaskEditPage> {
   }
 
   Widget _buildBody() {
+    final l10n = AppLocalizations.of(context)!;
     // Show loading state while fetching task
     if (_isLoadingTask) {
-      return const LoadingState(message: 'جاري تحميل المهمة...');
+      return LoadingState(message: l10n.task_loading);
     }
 
     // Show error if task failed to load
-    if (_taskLoadError != null) {
+    if (_taskLoadFailed) {
       return ErrorState(
         icon: Icons.error_outline,
-        message: _taskLoadError!,
-        retryLabel: 'إعادة المحاولة',
+        message: l10n.task_loadError,
+        retryLabel: l10n.common_retry,
         onRetry: () {
           setState(() {
             _isLoadingTask = true;
-            _taskLoadError = null;
+            _taskLoadFailed = false;
           });
           _loadTask();
         },
@@ -210,10 +214,10 @@ class _TaskEditPageState extends State<TaskEditPage> {
     }
 
     // Task not found
-    if (_task == null) {
-      return const ErrorState(
+    if (_taskNotFound || _task == null) {
+      return ErrorState(
         icon: Icons.search_off,
-        message: 'المهمة غير موجودة',
+        message: l10n.error_taskNotFound,
       );
     }
 
@@ -222,6 +226,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
   }
 
   Widget _buildEditForm() {
+    final l10n = AppLocalizations.of(context)!;
     return Form(
       key: _formKey,
       child: ListView(
@@ -233,12 +238,12 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
           // Title field
           RibalTextField(
-            label: 'عنوان المهمة',
-            hint: 'أدخل عنوان المهمة',
+            label: l10n.task_title,
+            hint: l10n.task_titleHint,
             controller: _titleController,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'عنوان المهمة مطلوب';
+                return l10n.task_titleRequired;
               }
               return null;
             },
@@ -247,8 +252,8 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
           // Description field
           RibalTextField(
-            label: 'وصف المهمة',
-            hint: 'أدخل وصف المهمة',
+            label: l10n.task_description,
+            hint: l10n.task_descriptionHint,
             controller: _descriptionController,
             maxLines: 4,
           ),
@@ -256,8 +261,10 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
           // Labels section
           Text(
-            'التصنيفات',
-            style: AppTypography.titleMedium,
+            l10n.task_labels,
+            style: AppTypography.titleMedium.copyWith(
+              color: context.colors.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           _buildLabelsSelector(),
@@ -265,8 +272,8 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
           // Recurring toggle
           SwitchListTile(
-            title: const Text('مهمة متكررة'),
-            subtitle: const Text('إعادة جدولة المهمة يومياً'),
+            title: Text(l10n.task_recurring),
+            subtitle: Text(l10n.task_recurringLabel),
             value: _isRecurring,
             onChanged: (value) => setState(() => _isRecurring = value),
           ),
@@ -274,8 +281,8 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
           // Attachment required toggle
           SwitchListTile(
-            title: const Text('المرفق مطلوب'),
-            subtitle: const Text('يجب على المكلفين إرفاق ملف عند إتمام المهمة'),
+            title: Text(l10n.task_attachmentRequired),
+            subtitle: Text(l10n.task_attachmentRequiredSubtitle),
             value: _attachmentRequired,
             onChanged: (value) => setState(() => _attachmentRequired = value),
           ),
@@ -283,8 +290,10 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
           // Assignment target section
           Text(
-            'تعيين المهمة إلى',
-            style: AppTypography.titleMedium,
+            l10n.task_assignTo,
+            style: AppTypography.titleMedium.copyWith(
+              color: context.colors.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           _buildAssignmentSelector(),
@@ -300,7 +309,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
           // Submit button
           RibalButton(
-            text: 'حفظ التعديلات',
+            text: l10n.common_saveChanges,
             onPressed: _isSubmitting ? null : _handleUpdateTask,
             isLoading: _isSubmitting,
           ),
@@ -311,6 +320,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
   }
 
   Widget _buildStatusInfoCard() {
+    final l10n = AppLocalizations.of(context)!;
     final task = _task!;
 
     return Container(
@@ -338,7 +348,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task.isArchived ? 'مهمة مؤرشفة' : 'مهمة نشطة',
+                  task.isArchived ? l10n.task_archivedTask : l10n.task_activeTask,
                   style: AppTypography.labelLarge.copyWith(
                     color: task.isArchived ? AppColors.warning : AppColors.success,
                     fontWeight: FontWeight.w600,
@@ -347,7 +357,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
                 if (task.isRecurring && !task.isActive && !task.isArchived) ...[
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    'المهمة المتكررة متوقفة مؤقتاً',
+                    l10n.task_recurringPaused,
                     style: AppTypography.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -362,6 +372,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
   }
 
   Widget _buildLabelsSelector() {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingLabels) {
       return const Center(
         child: Padding(
@@ -375,18 +386,18 @@ class _TaskEditPageState extends State<TaskEditPage> {
       return Container(
         padding: AppSpacing.cardPadding,
         decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
+          color: context.colors.surfaceVariant,
           borderRadius: AppSpacing.borderRadiusMd,
         ),
         child: Row(
           children: [
-            const Icon(Icons.label_off_outlined, color: AppColors.textTertiary),
+            Icon(Icons.label_off_outlined, color: context.colors.textTertiary),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                'لا توجد تصنيفات متاحة. يمكنك إنشاء تصنيفات من لوحة التحكم.',
+                l10n.task_noLabelsAvailable,
                 style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ),
@@ -416,7 +427,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
           ),
           selectedColor: labelColor.surfaceColor,
           side: BorderSide(
-            color: isSelected ? labelColor.color : AppColors.border,
+            color: isSelected ? labelColor.color : context.colors.border,
           ),
           onSelected: (selected) {
             setState(() {
@@ -433,9 +444,10 @@ class _TaskEditPageState extends State<TaskEditPage> {
   }
 
   Widget _buildAssignmentSelector() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
         borderRadius: AppSpacing.borderRadiusMd,
       ),
       child: Column(
@@ -443,8 +455,8 @@ class _TaskEditPageState extends State<TaskEditPage> {
           // Only show "all users" option for admins (not in manager mode)
           if (!widget.isManagerMode) ...[
             RadioListTile<AssigneeSelection>(
-              title: const Text('جميع المستخدمين'),
-              subtitle: const Text('سيتم تعيين المهمة لجميع الموظفين'),
+              title: Text(l10n.task_allUsers),
+              subtitle: Text(l10n.task_allUsersSubtitle),
               value: AssigneeSelection.all,
               groupValue: _assigneeSelection,
               onChanged: (value) {
@@ -457,8 +469,8 @@ class _TaskEditPageState extends State<TaskEditPage> {
             const Divider(height: 1),
           ],
           RadioListTile<AssigneeSelection>(
-            title: const Text('مجموعات محددة'),
-            subtitle: const Text('اختر المجموعات التي ستتلقى المهمة'),
+            title: Text(l10n.task_specificGroups),
+            subtitle: Text(l10n.task_specificGroupsSubtitle),
             value: AssigneeSelection.groups,
             groupValue: _assigneeSelection,
             onChanged: (value) {
@@ -471,6 +483,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
   }
 
   Widget _buildGroupSelector() {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingGroups) {
       return const Center(
         child: Padding(
@@ -494,7 +507,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                'لا توجد مجموعات متاحة. قم بإنشاء مجموعات من لوحة التحكم أولاً.',
+                l10n.task_noGroupsAvailable,
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.warning,
                 ),
@@ -507,7 +520,7 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
         borderRadius: AppSpacing.borderRadiusMd,
       ),
       child: Column(
@@ -516,8 +529,10 @@ class _TaskEditPageState extends State<TaskEditPage> {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Text(
-              'اختر المجموعات:',
-              style: AppTypography.labelLarge,
+              l10n.task_selectGroups,
+              style: AppTypography.labelLarge.copyWith(
+                color: context.colors.textPrimary,
+              ),
             ),
           ),
           const Divider(height: 1),
@@ -540,13 +555,14 @@ class _TaskEditPageState extends State<TaskEditPage> {
   }
 
   void _handleUpdateTask() {
+    final l10n = AppLocalizations.of(context)!;
     if (_formKey.currentState?.validate() ?? false) {
       // Validate group selection if groups is chosen
       if (_assigneeSelection == AssigneeSelection.groups &&
           _selectedGroupIds.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('يرجى اختيار مجموعة واحدة على الأقل'),
+          SnackBar(
+            content: Text(l10n.task_selectAtLeastOneGroup),
             backgroundColor: Colors.red,
           ),
         );
@@ -555,8 +571,8 @@ class _TaskEditPageState extends State<TaskEditPage> {
 
       if (_task == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('خطأ: المهمة غير موجودة'),
+          SnackBar(
+            content: Text(l10n.error_taskNotFound),
             backgroundColor: Colors.red,
           ),
         );

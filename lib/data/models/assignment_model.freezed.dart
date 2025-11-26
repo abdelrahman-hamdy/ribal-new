@@ -27,6 +27,7 @@ mixin _$AssignmentModel {
   String? get apologizeMessage => throw _privateConstructorUsedError;
   DateTime? get completedAt => throw _privateConstructorUsedError;
   DateTime? get apologizedAt => throw _privateConstructorUsedError;
+  DateTime? get overdueAt => throw _privateConstructorUsedError;
   String? get markedDoneBy => throw _privateConstructorUsedError;
   String? get attachmentUrl => throw _privateConstructorUsedError;
   DateTime get scheduledDate => throw _privateConstructorUsedError;
@@ -56,6 +57,7 @@ abstract class $AssignmentModelCopyWith<$Res> {
       String? apologizeMessage,
       DateTime? completedAt,
       DateTime? apologizedAt,
+      DateTime? overdueAt,
       String? markedDoneBy,
       String? attachmentUrl,
       DateTime scheduledDate,
@@ -84,6 +86,7 @@ class _$AssignmentModelCopyWithImpl<$Res, $Val extends AssignmentModel>
     Object? apologizeMessage = freezed,
     Object? completedAt = freezed,
     Object? apologizedAt = freezed,
+    Object? overdueAt = freezed,
     Object? markedDoneBy = freezed,
     Object? attachmentUrl = freezed,
     Object? scheduledDate = null,
@@ -117,6 +120,10 @@ class _$AssignmentModelCopyWithImpl<$Res, $Val extends AssignmentModel>
       apologizedAt: freezed == apologizedAt
           ? _value.apologizedAt
           : apologizedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      overdueAt: freezed == overdueAt
+          ? _value.overdueAt
+          : overdueAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
       markedDoneBy: freezed == markedDoneBy
           ? _value.markedDoneBy
@@ -154,6 +161,7 @@ abstract class _$$AssignmentModelImplCopyWith<$Res>
       String? apologizeMessage,
       DateTime? completedAt,
       DateTime? apologizedAt,
+      DateTime? overdueAt,
       String? markedDoneBy,
       String? attachmentUrl,
       DateTime scheduledDate,
@@ -180,6 +188,7 @@ class __$$AssignmentModelImplCopyWithImpl<$Res>
     Object? apologizeMessage = freezed,
     Object? completedAt = freezed,
     Object? apologizedAt = freezed,
+    Object? overdueAt = freezed,
     Object? markedDoneBy = freezed,
     Object? attachmentUrl = freezed,
     Object? scheduledDate = null,
@@ -214,6 +223,10 @@ class __$$AssignmentModelImplCopyWithImpl<$Res>
           ? _value.apologizedAt
           : apologizedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      overdueAt: freezed == overdueAt
+          ? _value.overdueAt
+          : overdueAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       markedDoneBy: freezed == markedDoneBy
           ? _value.markedDoneBy
           : markedDoneBy // ignore: cast_nullable_to_non_nullable
@@ -245,6 +258,7 @@ class _$AssignmentModelImpl extends _AssignmentModel {
       this.apologizeMessage,
       this.completedAt,
       this.apologizedAt,
+      this.overdueAt,
       this.markedDoneBy,
       this.attachmentUrl,
       required this.scheduledDate,
@@ -269,6 +283,8 @@ class _$AssignmentModelImpl extends _AssignmentModel {
   @override
   final DateTime? apologizedAt;
   @override
+  final DateTime? overdueAt;
+  @override
   final String? markedDoneBy;
   @override
   final String? attachmentUrl;
@@ -279,7 +295,7 @@ class _$AssignmentModelImpl extends _AssignmentModel {
 
   @override
   String toString() {
-    return 'AssignmentModel(id: $id, taskId: $taskId, userId: $userId, status: $status, apologizeMessage: $apologizeMessage, completedAt: $completedAt, apologizedAt: $apologizedAt, markedDoneBy: $markedDoneBy, attachmentUrl: $attachmentUrl, scheduledDate: $scheduledDate, createdAt: $createdAt)';
+    return 'AssignmentModel(id: $id, taskId: $taskId, userId: $userId, status: $status, apologizeMessage: $apologizeMessage, completedAt: $completedAt, apologizedAt: $apologizedAt, overdueAt: $overdueAt, markedDoneBy: $markedDoneBy, attachmentUrl: $attachmentUrl, scheduledDate: $scheduledDate, createdAt: $createdAt)';
   }
 
   @override
@@ -297,6 +313,8 @@ class _$AssignmentModelImpl extends _AssignmentModel {
                 other.completedAt == completedAt) &&
             (identical(other.apologizedAt, apologizedAt) ||
                 other.apologizedAt == apologizedAt) &&
+            (identical(other.overdueAt, overdueAt) ||
+                other.overdueAt == overdueAt) &&
             (identical(other.markedDoneBy, markedDoneBy) ||
                 other.markedDoneBy == markedDoneBy) &&
             (identical(other.attachmentUrl, attachmentUrl) ||
@@ -318,6 +336,7 @@ class _$AssignmentModelImpl extends _AssignmentModel {
       apologizeMessage,
       completedAt,
       apologizedAt,
+      overdueAt,
       markedDoneBy,
       attachmentUrl,
       scheduledDate,
@@ -349,6 +368,7 @@ abstract class _AssignmentModel extends AssignmentModel {
       final String? apologizeMessage,
       final DateTime? completedAt,
       final DateTime? apologizedAt,
+      final DateTime? overdueAt,
       final String? markedDoneBy,
       final String? attachmentUrl,
       required final DateTime scheduledDate,
@@ -372,6 +392,8 @@ abstract class _AssignmentModel extends AssignmentModel {
   DateTime? get completedAt;
   @override
   DateTime? get apologizedAt;
+  @override
+  DateTime? get overdueAt;
   @override
   String? get markedDoneBy;
   @override
@@ -398,6 +420,7 @@ mixin _$AssignmentWithTask {
   String? get taskAttachmentUrl => throw _privateConstructorUsedError;
   bool get taskAttachmentRequired => throw _privateConstructorUsedError;
   String get taskCreatorId => throw _privateConstructorUsedError;
+  String get taskCreatorName => throw _privateConstructorUsedError;
 
   /// Create a copy of AssignmentWithTask
   /// with the given fields replaced by the non-null parameter values.
@@ -419,7 +442,8 @@ abstract class $AssignmentWithTaskCopyWith<$Res> {
       List<String> taskLabelIds,
       String? taskAttachmentUrl,
       bool taskAttachmentRequired,
-      String taskCreatorId});
+      String taskCreatorId,
+      String taskCreatorName});
 
   $AssignmentModelCopyWith<$Res> get assignment;
 }
@@ -446,6 +470,7 @@ class _$AssignmentWithTaskCopyWithImpl<$Res, $Val extends AssignmentWithTask>
     Object? taskAttachmentUrl = freezed,
     Object? taskAttachmentRequired = null,
     Object? taskCreatorId = null,
+    Object? taskCreatorName = null,
   }) {
     return _then(_value.copyWith(
       assignment: null == assignment
@@ -476,6 +501,10 @@ class _$AssignmentWithTaskCopyWithImpl<$Res, $Val extends AssignmentWithTask>
           ? _value.taskCreatorId
           : taskCreatorId // ignore: cast_nullable_to_non_nullable
               as String,
+      taskCreatorName: null == taskCreatorName
+          ? _value.taskCreatorName
+          : taskCreatorName // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 
@@ -505,7 +534,8 @@ abstract class _$$AssignmentWithTaskImplCopyWith<$Res>
       List<String> taskLabelIds,
       String? taskAttachmentUrl,
       bool taskAttachmentRequired,
-      String taskCreatorId});
+      String taskCreatorId,
+      String taskCreatorName});
 
   @override
   $AssignmentModelCopyWith<$Res> get assignment;
@@ -531,6 +561,7 @@ class __$$AssignmentWithTaskImplCopyWithImpl<$Res>
     Object? taskAttachmentUrl = freezed,
     Object? taskAttachmentRequired = null,
     Object? taskCreatorId = null,
+    Object? taskCreatorName = null,
   }) {
     return _then(_$AssignmentWithTaskImpl(
       assignment: null == assignment
@@ -561,6 +592,10 @@ class __$$AssignmentWithTaskImplCopyWithImpl<$Res>
           ? _value.taskCreatorId
           : taskCreatorId // ignore: cast_nullable_to_non_nullable
               as String,
+      taskCreatorName: null == taskCreatorName
+          ? _value.taskCreatorName
+          : taskCreatorName // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -575,7 +610,8 @@ class _$AssignmentWithTaskImpl implements _AssignmentWithTask {
       required final List<String> taskLabelIds,
       this.taskAttachmentUrl,
       this.taskAttachmentRequired = false,
-      required this.taskCreatorId})
+      required this.taskCreatorId,
+      required this.taskCreatorName})
       : _taskLabelIds = taskLabelIds;
 
   @override
@@ -599,10 +635,12 @@ class _$AssignmentWithTaskImpl implements _AssignmentWithTask {
   final bool taskAttachmentRequired;
   @override
   final String taskCreatorId;
+  @override
+  final String taskCreatorName;
 
   @override
   String toString() {
-    return 'AssignmentWithTask(assignment: $assignment, taskTitle: $taskTitle, taskDescription: $taskDescription, taskLabelIds: $taskLabelIds, taskAttachmentUrl: $taskAttachmentUrl, taskAttachmentRequired: $taskAttachmentRequired, taskCreatorId: $taskCreatorId)';
+    return 'AssignmentWithTask(assignment: $assignment, taskTitle: $taskTitle, taskDescription: $taskDescription, taskLabelIds: $taskLabelIds, taskAttachmentUrl: $taskAttachmentUrl, taskAttachmentRequired: $taskAttachmentRequired, taskCreatorId: $taskCreatorId, taskCreatorName: $taskCreatorName)';
   }
 
   @override
@@ -623,7 +661,9 @@ class _$AssignmentWithTaskImpl implements _AssignmentWithTask {
             (identical(other.taskAttachmentRequired, taskAttachmentRequired) ||
                 other.taskAttachmentRequired == taskAttachmentRequired) &&
             (identical(other.taskCreatorId, taskCreatorId) ||
-                other.taskCreatorId == taskCreatorId));
+                other.taskCreatorId == taskCreatorId) &&
+            (identical(other.taskCreatorName, taskCreatorName) ||
+                other.taskCreatorName == taskCreatorName));
   }
 
   @override
@@ -635,7 +675,8 @@ class _$AssignmentWithTaskImpl implements _AssignmentWithTask {
       const DeepCollectionEquality().hash(_taskLabelIds),
       taskAttachmentUrl,
       taskAttachmentRequired,
-      taskCreatorId);
+      taskCreatorId,
+      taskCreatorName);
 
   /// Create a copy of AssignmentWithTask
   /// with the given fields replaced by the non-null parameter values.
@@ -655,7 +696,8 @@ abstract class _AssignmentWithTask implements AssignmentWithTask {
       required final List<String> taskLabelIds,
       final String? taskAttachmentUrl,
       final bool taskAttachmentRequired,
-      required final String taskCreatorId}) = _$AssignmentWithTaskImpl;
+      required final String taskCreatorId,
+      required final String taskCreatorName}) = _$AssignmentWithTaskImpl;
 
   @override
   AssignmentModel get assignment;
@@ -671,6 +713,8 @@ abstract class _AssignmentWithTask implements AssignmentWithTask {
   bool get taskAttachmentRequired;
   @override
   String get taskCreatorId;
+  @override
+  String get taskCreatorName;
 
   /// Create a copy of AssignmentWithTask
   /// with the given fields replaced by the non-null parameter values.

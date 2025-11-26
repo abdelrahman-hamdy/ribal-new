@@ -13,7 +13,6 @@ part 'tasks_state.dart';
 @injectable
 class TasksBloc extends Bloc<TasksEvent, TasksState> {
   final TaskRepository _taskRepository;
-  StreamSubscription? _tasksSubscription;
 
   TasksBloc(this._taskRepository) : super(TasksState.initial()) {
     on<TasksLoadRequested>(_onLoadRequested);
@@ -37,20 +36,21 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
 
-    await _tasksSubscription?.cancel();
+    try {
+      // Use cache-first strategy - NO STREAMS!
+      final tasks = await _taskRepository.getActiveTasks();
 
-    await emit.forEach<List<TaskModel>>(
-      _taskRepository.streamActiveTasks(),
-      onData: (tasks) => state.copyWith(
+      emit(state.copyWith(
         tasks: tasks,
         filteredTasks: _applyFilters(tasks, state.searchQuery, state.filterRecurring),
         isLoading: false,
-      ),
-      onError: (_, __) => state.copyWith(
+      ));
+    } catch (e) {
+      emit(state.copyWith(
         isLoading: false,
         errorMessage: 'فشل في تحميل المهام',
-      ),
-    );
+      ));
+    }
   }
 
   Future<void> _onLoadArchivedRequested(
@@ -59,19 +59,20 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
 
-    await _tasksSubscription?.cancel();
+    try {
+      // Use cache-first strategy - NO STREAMS!
+      final tasks = await _taskRepository.getArchivedTasks();
 
-    await emit.forEach<List<TaskModel>>(
-      _taskRepository.streamArchivedTasks(),
-      onData: (tasks) => state.copyWith(
+      emit(state.copyWith(
         archivedTasks: tasks,
         isLoading: false,
-      ),
-      onError: (_, __) => state.copyWith(
+      ));
+    } catch (e) {
+      emit(state.copyWith(
         isLoading: false,
         errorMessage: 'فشل في تحميل الأرشيف',
-      ),
-    );
+      ));
+    }
   }
 
   Future<void> _onCreateRequested(
@@ -107,6 +108,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
         isLoading: false,
         successMessage: 'تم إنشاء المهمة بنجاح',
       ));
+
+      // Reload data after mutation to get fresh data
+      if (!isClosed) add(const TasksLoadRequested());
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
@@ -127,6 +131,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
         isLoading: false,
         successMessage: 'تم تحديث المهمة بنجاح',
       ));
+
+      // Reload data after mutation to get fresh data
+      if (!isClosed) add(const TasksLoadRequested());
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
@@ -146,6 +153,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
       emit(state.copyWith(
         successMessage: 'تم أرشفة المهمة بنجاح',
       ));
+
+      // Reload data after mutation to get fresh data
+      if (!isClosed) add(const TasksLoadRequested());
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في أرشفة المهمة',
@@ -164,6 +174,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
       emit(state.copyWith(
         successMessage: 'تم استعادة المهمة بنجاح',
       ));
+
+      // Reload archived tasks after restore
+      if (!isClosed) add(const TasksLoadArchivedRequested());
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في استعادة المهمة',
@@ -184,6 +197,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
         isLoading: false,
         successMessage: 'تم حذف المهمة بنجاح',
       ));
+
+      // Reload data after deletion
+      if (!isClosed) add(const TasksLoadRequested());
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
@@ -203,6 +219,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
       emit(state.copyWith(
         successMessage: event.isActive ? 'تم تفعيل المهمة المتكررة' : 'تم إيقاف المهمة المتكررة',
       ));
+
+      // Reload data after toggle
+      if (!isClosed) add(const TasksLoadRequested());
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في تحديث حالة المهمة',
@@ -253,6 +272,12 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
       emit(state.copyWith(
         successMessage: 'تم نشر المهمة كمهمة متكررة بنجاح',
       ));
+
+      // Reload both active and archived tasks
+      if (!isClosed) {
+        add(const TasksLoadRequested());
+        add(const TasksLoadArchivedRequested());
+      }
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في نشر المهمة',
@@ -271,6 +296,12 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
       emit(state.copyWith(
         successMessage: 'تم نشر المهمة لليوم فقط بنجاح',
       ));
+
+      // Reload both active and archived tasks
+      if (!isClosed) {
+        add(const TasksLoadRequested());
+        add(const TasksLoadArchivedRequested());
+      }
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في نشر المهمة',
@@ -304,7 +335,7 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
 
   @override
   Future<void> close() {
-    _tasksSubscription?.cancel();
+    // No streams to cancel anymore
     return super.close();
   }
 }

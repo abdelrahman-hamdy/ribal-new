@@ -5,8 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../data/models/assignment_model.dart';
 import '../../../data/models/label_model.dart';
 import '../../../data/models/user_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/ksa_timezone.dart';
+import '../../utils/time_formatter.dart';
 
 /// Status badge widget for assignment status
 class AssignmentStatusBadge extends StatelessWidget {
@@ -14,8 +17,22 @@ class AssignmentStatusBadge extends StatelessWidget {
 
   const AssignmentStatusBadge({super.key, required this.status});
 
+  String _getStatusDisplayName(AppLocalizations l10n, AssignmentStatus status) {
+    switch (status) {
+      case AssignmentStatus.pending:
+        return l10n.task_statusPending;
+      case AssignmentStatus.completed:
+        return l10n.task_completed;
+      case AssignmentStatus.apologized:
+        return l10n.task_statusApologized;
+      case AssignmentStatus.overdue:
+        return l10n.task_statusOverdue;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final statusColor = _getStatusColor(status);
     final statusSurfaceColor = statusColor.withValues(alpha: 0.1);
 
@@ -41,7 +58,7 @@ class AssignmentStatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            status.displayNameAr,
+            _getStatusDisplayName(l10n, status),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: statusColor,
                   fontWeight: FontWeight.w600,
@@ -59,7 +76,8 @@ class AssignmentStatusBadge extends StatelessWidget {
       case AssignmentStatus.completed:
         return AppColors.success;
       case AssignmentStatus.apologized:
-        return AppColors.error;
+      case AssignmentStatus.overdue:
+        return AppColors.error; // Both are "failed" states
     }
   }
 }
@@ -113,22 +131,23 @@ class AssignmentCreatorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (creator == null) {
       return Row(
         children: [
-          const Icon(Icons.person_outline, size: 18, color: AppColors.textTertiary),
+          Icon(Icons.person_outline, size: 18, color: context.colors.textTertiary),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            'أنشئت بواسطة:',
+            '${l10n.task_createdBy}:',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: context.colors.textTertiary,
                 ),
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            'غير معروف',
+            l10n.user_unknown,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
           ),
@@ -141,9 +160,9 @@ class AssignmentCreatorRow extends StatelessWidget {
     return Row(
       children: [
         Text(
-          'أنشئت بواسطة:',
+          '${l10n.task_createdBy}:',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -195,12 +214,12 @@ class AssignmentMetaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.textTertiary),
+        Icon(icon, size: 18, color: context.colors.textTertiary),
         const SizedBox(width: AppSpacing.sm),
         Text(
           '$label:',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -208,7 +227,7 @@ class AssignmentMetaRow extends StatelessWidget {
           child: Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: valueColor ?? AppColors.textPrimary,
+                  color: valueColor ?? context.colors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
           ),
@@ -232,8 +251,8 @@ class AssignmentDeadlineRow extends StatelessWidget {
   bool _isDeadlinePassed() {
     if (!assignment.status.isPending) return false;
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final now = KsaTimezone.now();
+    final today = KsaTimezone.today();
     final scheduledDate = assignment.scheduledDate;
 
     final isToday = scheduledDate.year == today.year &&
@@ -253,24 +272,12 @@ class AssignmentDeadlineRow extends StatelessWidget {
     }
   }
 
-  String _formatTimeArabic(String time) {
-    try {
-      final parts = time.split(':');
-      final hour = int.parse(parts[0]);
-      final isPm = hour >= 12;
-      final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      final period = isPm ? 'مساءً' : 'صباحاً';
-      return '$hour12 $period';
-    } catch (_) {
-      return time;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isOverdue = _isDeadlinePassed();
-    final color = isOverdue ? AppColors.error : AppColors.textTertiary;
-    final formattedTime = _formatTimeArabic(deadline);
+    final color = isOverdue ? AppColors.error : context.colors.textTertiary;
+    final formattedTime = TimeFormatter.formatTimeArabic(deadline);
 
     return Row(
       children: [
@@ -281,7 +288,7 @@ class AssignmentDeadlineRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(
-          'موعد التسليم:',
+          '${l10n.task_deadlineAt}:',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: color,
               ),
@@ -309,7 +316,7 @@ class AssignmentDeadlineRow extends StatelessWidget {
                     borderRadius: AppSpacing.borderRadiusSm,
                   ),
                   child: Text(
-                    'منتهي',
+                    l10n.task_deadlineExpired,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: AppColors.error,
                           fontSize: 10,
@@ -334,11 +341,12 @@ class AssignmentApologizeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'سبب الاعتذار',
+          l10n.assignment_apologizeReason,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -384,11 +392,12 @@ class AssignmentCompletionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'معلومات الإكمال',
+          l10n.assignment_completionInfo,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -410,7 +419,7 @@ class AssignmentCompletionSection extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                'تم التسليم في ${DateFormat('d MMMM yyyy - h:mm a', 'ar').format(assignment.completedAt!)}',
+                '${l10n.assignment_completedAt} ${DateFormat('d MMMM yyyy - h:mm a', 'ar').format(assignment.completedAt!)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.success,
                     ),
@@ -421,9 +430,9 @@ class AssignmentCompletionSection extends StatelessWidget {
         if (assignment.isCompletedByCreator) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '(تم التسليم بواسطة الإدارة)',
+            l10n.assignment_completedByAdmin,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: context.colors.textTertiary,
                   fontSize: 11,
                 ),
           ),
@@ -441,14 +450,15 @@ class AssignmentAttachmentViewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
         const Icon(Icons.check_circle, size: 18, color: AppColors.success),
         const SizedBox(width: AppSpacing.sm),
         Text(
-          'المرفق:',
+          '${l10n.task_attachment}:',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -463,8 +473,8 @@ class AssignmentAttachmentViewRow extends StatelessWidget {
                 );
                 if (!launched && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('لم يتمكن من فتح الملف'),
+                    SnackBar(
+                      content: Text(l10n.error_fileOpen),
                       backgroundColor: AppColors.error,
                     ),
                   );
@@ -472,8 +482,8 @@ class AssignmentAttachmentViewRow extends StatelessWidget {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('خطأ في فتح الملف'),
+                    SnackBar(
+                      content: Text(l10n.error_fileOpenError),
                       backgroundColor: AppColors.error,
                     ),
                   );
@@ -481,7 +491,7 @@ class AssignmentAttachmentViewRow extends StatelessWidget {
               }
             },
             child: Text(
-              'عرض المرفق',
+              l10n.task_attachmentView,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,

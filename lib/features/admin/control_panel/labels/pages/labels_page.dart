@@ -8,6 +8,7 @@ import '../../../../../core/widgets/buttons/ribal_button.dart';
 import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../core/widgets/inputs/ribal_text_field.dart';
 import '../../../../../data/models/label_model.dart';
+import '../../../../../l10n/generated/app_localizations.dart';
 import '../../../../auth/bloc/auth_bloc.dart';
 import '../bloc/labels_bloc.dart';
 
@@ -28,9 +29,10 @@ class _LabelsPageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('التصنيفات'),
+        title: Text(l10n.label_title),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -67,14 +69,14 @@ class _LabelsPageContent extends StatelessWidget {
             if (state.searchQuery.isNotEmpty) {
               return EmptyState(
                 icon: Icons.search_off,
-                title: 'لا توجد نتائج',
-                message: 'لم يتم العثور على تصنيف يطابق "${state.searchQuery}"',
+                title: l10n.common_no_results,
+                message: l10n.label_noLabelsMatchingSearch(state.searchQuery),
               );
             }
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.label_outline,
-              title: 'لا توجد تصنيفات',
-              message: 'قم بإنشاء تصنيفات لتنظيم المهام',
+              title: l10n.label_noLabels,
+              message: l10n.label_noLabelsSubtitle,
             );
           }
 
@@ -102,12 +104,13 @@ class _LabelsPageContent extends StatelessWidget {
   }
 
   void _showCreateDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
       ),
@@ -120,8 +123,8 @@ class _LabelsPageContent extends StatelessWidget {
 
             if (userId.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('خطأ: لم يتم العثور على المستخدم'),
+                SnackBar(
+                  content: Text(l10n.common_errorUserNotFound),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -145,6 +148,7 @@ class _LabelsPageContent extends StatelessWidget {
 class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return TextField(
       onChanged: (value) {
         if (value.isEmpty) {
@@ -154,10 +158,10 @@ class _SearchField extends StatelessWidget {
         }
       },
       decoration: InputDecoration(
-        hintText: 'البحث في التصنيفات...',
+        hintText: l10n.label_searchHint,
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: context.colors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -173,16 +177,58 @@ class _LabelCard extends StatelessWidget {
 
   const _LabelCard({required this.label});
 
+  String _getColorName(AppLocalizations l10n, LabelColor color) {
+    switch (color) {
+      case LabelColor.red:
+        return l10n.color_red;
+      case LabelColor.orange:
+        return l10n.color_orange;
+      case LabelColor.amber:
+        return l10n.color_amber;
+      case LabelColor.yellow:
+        return l10n.color_yellow;
+      case LabelColor.lime:
+        return l10n.color_lime;
+      case LabelColor.green:
+        return l10n.color_green;
+      case LabelColor.emerald:
+        return l10n.color_emerald;
+      case LabelColor.teal:
+        return l10n.color_teal;
+      case LabelColor.cyan:
+        return l10n.color_cyan;
+      case LabelColor.sky:
+        return l10n.color_sky;
+      case LabelColor.blue:
+        return l10n.color_blue;
+      case LabelColor.indigo:
+        return l10n.color_indigo;
+      case LabelColor.violet:
+        return l10n.color_violet;
+      case LabelColor.purple:
+        return l10n.color_purple;
+      case LabelColor.fuchsia:
+        return l10n.color_fuchsia;
+      case LabelColor.pink:
+        return l10n.color_pink;
+      case LabelColor.rose:
+        return l10n.color_rose;
+      case LabelColor.stone:
+        return l10n.color_stone;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final labelColor = LabelColor.fromHex(label.color);
 
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -223,13 +269,13 @@ class _LabelCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
+                          color: context.colors.surfaceVariant,
                           borderRadius: AppSpacing.borderRadiusFull,
                         ),
                         child: Text(
-                          'معطل',
+                          l10n.label_disabled,
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
+                            color: context.colors.textTertiary,
                           ),
                         ),
                       ),
@@ -248,9 +294,9 @@ class _LabelCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      labelColor.nameAr,
+                      _getColorName(l10n, labelColor),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -275,19 +321,19 @@ class _LabelCard extends StatelessWidget {
                     ),
                   );
                 },
-                tooltip: label.isActive ? 'إلغاء التفعيل' : 'تفعيل',
-                color: label.isActive ? AppColors.textSecondary : AppColors.textTertiary,
+                tooltip: label.isActive ? l10n.label_deactivate : l10n.label_activate,
+                color: label.isActive ? context.colors.textSecondary : context.colors.textTertiary,
               ),
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 20),
                 onPressed: () => _showEditDialog(context, label),
-                tooltip: 'تعديل',
+                tooltip: l10n.common_edit,
                 color: AppColors.primary,
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () => _confirmDelete(context, label),
-                tooltip: 'حذف',
+                tooltip: l10n.common_delete,
                 color: AppColors.error,
               ),
             ],
@@ -303,7 +349,7 @@ class _LabelCard extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
       ),
@@ -324,15 +370,16 @@ class _LabelCard extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context, LabelModel label) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف التصنيف "${label.name}"؟'),
+        title: Text(l10n.common_confirmDelete),
+        content: Text(l10n.label_deleteConfirmMessage(label.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -342,7 +389,7 @@ class _LabelCard extends StatelessWidget {
               );
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('حذف'),
+            child: Text(l10n.common_delete),
           ),
         ],
       ),
@@ -388,6 +435,7 @@ class _LabelFormDialogState extends State<_LabelFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<LabelsBloc, LabelsState>(
       listener: (context, state) {
         if (state.successMessage != null && _isSubmitting) {
@@ -412,7 +460,7 @@ class _LabelFormDialogState extends State<_LabelFormDialog> {
                 children: [
                   // Title
                   Text(
-                    _isEditing ? 'تعديل التصنيف' : 'إنشاء تصنيف جديد',
+                    _isEditing ? l10n.label_edit : l10n.label_create,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -422,16 +470,16 @@ class _LabelFormDialogState extends State<_LabelFormDialog> {
                   // Name field
                   RibalTextField(
                     controller: _nameController,
-                    label: 'اسم التصنيف',
-                    hint: 'أدخل اسم التصنيف',
+                    label: l10n.label_name,
+                    hint: l10n.label_nameHint,
                     prefixIcon: Icons.label_outline,
                     textInputAction: TextInputAction.done,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'اسم التصنيف مطلوب';
+                        return l10n.label_nameRequired;
                       }
                       if (value.length < 2) {
-                        return 'اسم التصنيف قصير جداً';
+                        return l10n.label_nameTooShort;
                       }
                       return null;
                     },
@@ -439,7 +487,7 @@ class _LabelFormDialogState extends State<_LabelFormDialog> {
                   const SizedBox(height: AppSpacing.lg),
                   // Color selection
                   Text(
-                    'اللون',
+                    l10n.label_color,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -454,15 +502,15 @@ class _LabelFormDialogState extends State<_LabelFormDialog> {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: context.colors.surfaceVariant,
                       borderRadius: AppSpacing.borderRadiusMd,
                     ),
                     child: Row(
                       children: [
                         Text(
-                          'معاينة:',
+                          l10n.label_preview,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+                            color: context.colors.textSecondary,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.md),
@@ -489,7 +537,7 @@ class _LabelFormDialogState extends State<_LabelFormDialog> {
                               ),
                               const SizedBox(width: AppSpacing.xs),
                               Text(
-                                _nameController.text.isEmpty ? 'اسم التصنيف' : _nameController.text,
+                                _nameController.text.isEmpty ? l10n.label_name : _nameController.text,
                                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                                   color: _selectedColor.color,
                                   fontWeight: FontWeight.w600,
@@ -504,14 +552,14 @@ class _LabelFormDialogState extends State<_LabelFormDialog> {
                   const SizedBox(height: AppSpacing.lg),
                   // Submit button
                   RibalButton(
-                    text: _isEditing ? 'حفظ التعديلات' : 'إنشاء التصنيف',
+                    text: _isEditing ? l10n.label_saveChanges : l10n.label_createLabel,
                     isLoading: _isSubmitting,
                     onPressed: _submit,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   // Cancel button
                   RibalButton(
-                    text: 'إلغاء',
+                    text: l10n.common_cancel,
                     variant: RibalButtonVariant.outline,
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -541,8 +589,50 @@ class _ColorPicker extends StatelessWidget {
     required this.onColorSelected,
   });
 
+  String _getColorName(AppLocalizations l10n, LabelColor color) {
+    switch (color) {
+      case LabelColor.red:
+        return l10n.color_red;
+      case LabelColor.orange:
+        return l10n.color_orange;
+      case LabelColor.amber:
+        return l10n.color_amber;
+      case LabelColor.yellow:
+        return l10n.color_yellow;
+      case LabelColor.lime:
+        return l10n.color_lime;
+      case LabelColor.green:
+        return l10n.color_green;
+      case LabelColor.emerald:
+        return l10n.color_emerald;
+      case LabelColor.teal:
+        return l10n.color_teal;
+      case LabelColor.cyan:
+        return l10n.color_cyan;
+      case LabelColor.sky:
+        return l10n.color_sky;
+      case LabelColor.blue:
+        return l10n.color_blue;
+      case LabelColor.indigo:
+        return l10n.color_indigo;
+      case LabelColor.violet:
+        return l10n.color_violet;
+      case LabelColor.purple:
+        return l10n.color_purple;
+      case LabelColor.fuchsia:
+        return l10n.color_fuchsia;
+      case LabelColor.pink:
+        return l10n.color_pink;
+      case LabelColor.rose:
+        return l10n.color_rose;
+      case LabelColor.stone:
+        return l10n.color_stone;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
@@ -551,7 +641,7 @@ class _ColorPicker extends StatelessWidget {
         return GestureDetector(
           onTap: () => onColorSelected(color),
           child: Tooltip(
-            message: color.nameAr,
+            message: _getColorName(l10n, color),
             child: AnimatedContainer(
               duration: AppSpacing.animationFast,
               width: 44,
@@ -560,7 +650,7 @@ class _ColorPicker extends StatelessWidget {
                 color: color.color,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? AppColors.textPrimary : Colors.transparent,
+                  color: isSelected ? context.colors.textPrimary : Colors.transparent,
                   width: 3,
                 ),
                 boxShadow: isSelected

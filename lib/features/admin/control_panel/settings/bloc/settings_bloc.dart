@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
@@ -13,7 +11,6 @@ part 'settings_state.dart';
 @injectable
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final SettingsRepository _settingsRepository;
-  StreamSubscription? _settingsSubscription;
 
   SettingsBloc(this._settingsRepository) : super(SettingsState.initial()) {
     on<SettingsLoadRequested>(_onLoadRequested);
@@ -29,21 +26,17 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     emit(state.copyWith(isLoading: true, clearError: true));
 
     try {
-      await _settingsSubscription?.cancel();
-
-      _settingsSubscription = _settingsRepository.streamSettings().listen(
-        (settings) {
-          emit(state.copyWith(
-            settings: settings,
-            isLoading: false,
-          ));
-        },
-        onError: (error) {
-          emit(state.copyWith(
-            isLoading: false,
-            errorMessage: 'فشل في تحميل الإعدادات',
-          ));
-        },
+      // Use emit.forEach to properly handle stream emissions within event handler
+      await emit.forEach<SettingsModel>(
+        _settingsRepository.streamSettings(),
+        onData: (settings) => state.copyWith(
+          settings: settings,
+          isLoading: false,
+        ),
+        onError: (error, stackTrace) => state.copyWith(
+          isLoading: false,
+          errorMessage: 'فشل في تحميل الإعدادات',
+        ),
       );
     } catch (e) {
       emit(state.copyWith(
@@ -109,9 +102,4 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     }
   }
 
-  @override
-  Future<void> close() {
-    _settingsSubscription?.cancel();
-    return super.close();
-  }
 }

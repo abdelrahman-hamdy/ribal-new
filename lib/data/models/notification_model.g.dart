@@ -44,7 +44,10 @@ const _$NotificationTypeEnumMap = {
   NotificationType.taskApologized: 'taskApologized',
   NotificationType.taskReactivated: 'taskReactivated',
   NotificationType.taskMarkedDone: 'taskMarkedDone',
+  NotificationType.taskOverdue: 'taskOverdue',
+  NotificationType.deadlineWarning: 'deadlineWarning',
   NotificationType.recurringScheduled: 'recurringScheduled',
   NotificationType.invitationAccepted: 'invitationAccepted',
   NotificationType.roleChanged: 'roleChanged',
+  NotificationType.noteReceived: 'noteReceived',
 };

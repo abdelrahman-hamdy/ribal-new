@@ -272,6 +272,7 @@ abstract final class AppTypography {
   // TEXT THEME (for ThemeData)
   // ============================================
 
+  /// Light theme text styles
   static TextTheme get textTheme => TextTheme(
         displayLarge: displayLarge,
         displayMedium: displayMedium,
@@ -288,5 +289,24 @@ abstract final class AppTypography {
         labelLarge: labelLarge,
         labelMedium: labelMedium,
         labelSmall: labelSmall,
+      );
+
+  /// Dark theme text styles
+  static TextTheme get textThemeDark => TextTheme(
+        displayLarge: displayLarge.copyWith(color: AppColors.textPrimaryDark),
+        displayMedium: displayMedium.copyWith(color: AppColors.textPrimaryDark),
+        displaySmall: displaySmall.copyWith(color: AppColors.textPrimaryDark),
+        headlineLarge: headlineLarge.copyWith(color: AppColors.textPrimaryDark),
+        headlineMedium: headlineMedium.copyWith(color: AppColors.textPrimaryDark),
+        headlineSmall: headlineSmall.copyWith(color: AppColors.textPrimaryDark),
+        titleLarge: titleLarge.copyWith(color: AppColors.textPrimaryDark),
+        titleMedium: titleMedium.copyWith(color: AppColors.textPrimaryDark),
+        titleSmall: titleSmall.copyWith(color: AppColors.textPrimaryDark),
+        bodyLarge: bodyLarge.copyWith(color: AppColors.textPrimaryDark),
+        bodyMedium: bodyMedium.copyWith(color: AppColors.textSecondaryDark),
+        bodySmall: bodySmall.copyWith(color: AppColors.textSecondaryDark),
+        labelLarge: labelLarge.copyWith(color: AppColors.textPrimaryDark),
+        labelMedium: labelMedium.copyWith(color: AppColors.textPrimaryDark),
+        labelSmall: labelSmall.copyWith(color: AppColors.textSecondaryDark),
       );
 }

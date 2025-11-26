@@ -35,8 +35,16 @@ class WhitelistBloc extends Bloc<WhitelistEvent, WhitelistState> {
     await _whitelistSubscription?.cancel();
 
     _whitelistSubscription = _whitelistRepository.streamAllWhitelistEntries().listen(
-      (entries) => add(_WhitelistDataReceived(entries: entries)),
-      onError: (error) => add(const _WhitelistErrorReceived()),
+      (entries) {
+        if (!isClosed) {
+          add(_WhitelistDataReceived(entries: entries));
+        }
+      },
+      onError: (error) {
+        if (!isClosed) {
+          add(const _WhitelistErrorReceived());
+        }
+      },
     );
   }
 

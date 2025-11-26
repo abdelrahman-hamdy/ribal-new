@@ -11,6 +11,7 @@ import '../../../../data/models/label_model.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../../data/repositories/group_repository.dart';
 import '../../../../data/repositories/label_repository.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../auth/bloc/auth_bloc.dart';
 import '../bloc/tasks_bloc.dart';
 
@@ -93,6 +94,7 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<TasksBloc, TasksState>(
       listener: (context, state) {
         if (state.successMessage != null && _isSubmitting) {
@@ -117,7 +119,7 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('إنشاء مهمة'),
+          title: Text(l10n.task_create),
         ),
         body: Form(
           key: _formKey,
@@ -161,7 +163,7 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
               BlocBuilder<TasksBloc, TasksState>(
                 builder: (context, state) {
                   return RibalButton(
-                    text: 'إنشاء المهمة',
+                    text: l10n.task_create,
                     onPressed: state.isLoading ? null : _handleCreateTask,
                     isLoading: state.isLoading,
                   );
@@ -175,13 +177,14 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
   }
 
   void _handleCreateTask() {
+    final l10n = AppLocalizations.of(context)!;
     if (_formKey.currentState?.validate() ?? false) {
       // Validate group selection if groups is chosen
       if (_assigneeSelection == AssigneeSelection.groups &&
           _selectedGroupIds.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('يرجى اختيار مجموعة واحدة على الأقل'),
+          SnackBar(
+            content: Text(l10n.task_selectAtLeastOneGroup),
             backgroundColor: Colors.red,
           ),
         );
@@ -194,8 +197,8 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
 
       if (userId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('خطأ في الحصول على بيانات المستخدم'),
+          SnackBar(
+            content: Text(l10n.common_errorUserNotFound),
             backgroundColor: Colors.red,
           ),
         );

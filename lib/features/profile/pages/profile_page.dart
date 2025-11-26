@@ -7,14 +7,17 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app/di/injection.dart';
 import '../../../app/router/routes.dart';
+import '../../../core/locale/bloc/locale_bloc.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/bloc/theme_bloc.dart';
 import '../../../core/widgets/avatar/ribal_avatar.dart';
 import '../../../core/widgets/buttons/ribal_button.dart';
 import '../../../core/widgets/inputs/ribal_text_field.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/bloc/auth_bloc.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -35,9 +38,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الملف الشخصي'),
+        title: Text(l10n.profile_title),
       ),
       body: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
@@ -50,7 +54,7 @@ class _ProfilePageState extends State<ProfilePage> {
           return RefreshIndicator(
             onRefresh: _onRefresh,
             color: AppColors.primary,
-            backgroundColor: AppColors.surface,
+            backgroundColor: context.colors.surface,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: AppSpacing.pagePadding,
@@ -69,7 +73,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 Center(
                   child: Text(
                     user.fullName,
-                    style: AppTypography.headlineMedium,
+                    style: AppTypography.headlineMedium.copyWith(
+                      color: context.colors.textPrimary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -82,11 +88,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       vertical: AppSpacing.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.getRoleSurfaceColor(user.role.name),
+                      color: AppColors.getRoleSurfaceColor(user.role.name, isDark: context.isDarkMode),
                       borderRadius: AppSpacing.borderRadiusFull,
                     ),
                     child: Text(
-                      user.role.displayNameAr,
+                      _getRoleDisplayName(context, user.role),
                       style: AppTypography.labelMedium.copyWith(
                         color: AppColors.getRoleColor(user.role.name),
                       ),
@@ -96,7 +102,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: AppSpacing.xl),
 
                 // Info card
-                _buildInfoCard(user),
+                _buildInfoCard(context, user),
                 const SizedBox(height: AppSpacing.lg),
 
                 // Settings section
@@ -105,7 +111,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 // Logout button
                 RibalButton(
-                  text: 'تسجيل الخروج',
+                  text: l10n.profile_logout,
                   onPressed: () => _handleLogout(context),
                   variant: RibalButtonVariant.danger,
                   icon: Icons.logout,
@@ -118,31 +124,47 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildInfoCard(UserModel user) {
+  String _getRoleDisplayName(BuildContext context, UserRole role) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
+  Widget _buildInfoCard(BuildContext context, UserModel user) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         children: [
           _buildInfoRow(
+            context: context,
             icon: Icons.person_outline,
-            label: 'الاسم الكامل',
+            label: l10n.profile_fullName,
             value: user.fullName,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: context.colors.divider),
           _buildInfoRow(
+            context: context,
             icon: Icons.email_outlined,
-            label: 'البريد الإلكتروني',
+            label: l10n.profile_email,
             value: user.email,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: context.colors.divider),
           _buildInfoRow(
+            context: context,
             icon: Icons.badge_outlined,
-            label: 'الدور',
-            value: user.role.displayNameAr,
+            label: l10n.profile_role,
+            value: _getRoleDisplayName(context, user.role),
           ),
         ],
       ),
@@ -150,6 +172,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildInfoRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
@@ -158,7 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: AppSpacing.cardPadding,
       child: Row(
         children: [
-          Icon(icon, color: AppColors.textSecondary, size: AppSpacing.iconLg),
+          Icon(icon, color: context.colors.textSecondary, size: AppSpacing.iconLg),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -167,10 +190,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   label,
                   style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
-                Text(value, style: AppTypography.titleMedium),
+                Text(
+                  value,
+                  style: AppTypography.titleMedium.copyWith(
+                    color: context.colors.textPrimary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -180,29 +208,40 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildSettingsSection(BuildContext context, UserModel user) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         children: [
           _buildSettingsButton(
+            context: context,
             icon: Icons.dark_mode_outlined,
-            label: 'الوضع الداكن',
+            label: l10n.profile_darkMode,
             onTap: () => _showDarkModeSheet(context),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: context.colors.divider),
           _buildSettingsButton(
+            context: context,
+            icon: Icons.language_outlined,
+            label: l10n.profile_language,
+            onTap: () => _showLanguageSheet(context),
+          ),
+          Divider(height: 1, color: context.colors.divider),
+          _buildSettingsButton(
+            context: context,
             icon: Icons.edit_outlined,
-            label: 'تعديل الملف الشخصي',
+            label: l10n.profile_editProfile,
             onTap: () => _showEditProfileSheet(context, user),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: context.colors.divider),
           _buildSettingsButton(
+            context: context,
             icon: Icons.lock_outline,
-            label: 'تغيير كلمة المرور',
+            label: l10n.profile_changePassword,
             onTap: () => _showChangePasswordSheet(context),
           ),
         ],
@@ -211,6 +250,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildSettingsButton({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
@@ -224,8 +264,8 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Container(
               padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: const BoxDecoration(
-                color: AppColors.primarySurface,
+              decoration: BoxDecoration(
+                color: context.colors.primarySurface,
                 borderRadius: AppSpacing.borderRadiusSm,
               ),
               child: Icon(
@@ -238,13 +278,15 @@ class _ProfilePageState extends State<ProfilePage> {
             Expanded(
               child: Text(
                 label,
-                style: AppTypography.titleMedium,
+                style: AppTypography.titleMedium.copyWith(
+                  color: context.colors.textPrimary,
+                ),
               ),
             ),
-            const Icon(
-              Icons.chevron_left,
-              color: AppColors.textTertiary,
-              size: AppSpacing.iconLg,
+            Icon(
+              Icons.arrow_forward_ios,
+              color: context.colors.textTertiary,
+              size: 16,
             ),
           ],
         ),
@@ -258,12 +300,33 @@ class _ProfilePageState extends State<ProfilePage> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
       ),
-      builder: (sheetContext) => const _DarkModeSheet(),
+      builder: (sheetContext) => BlocProvider.value(
+        value: context.read<ThemeBloc>(),
+        child: const _DarkModeSheet(),
+      ),
+    );
+  }
+
+  void _showLanguageSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+      ),
+      builder: (sheetContext) => BlocProvider.value(
+        value: context.read<LocaleBloc>(),
+        child: const _LanguageSheet(),
+      ),
     );
   }
 
@@ -273,7 +336,7 @@ class _ProfilePageState extends State<ProfilePage> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
@@ -291,7 +354,7 @@ class _ProfilePageState extends State<ProfilePage> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
@@ -304,6 +367,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _handleLogout(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     // Capture the bloc reference before showing dialog
     final authBloc = context.read<AuthBloc>();
 
@@ -322,21 +386,21 @@ class _ProfilePageState extends State<ProfilePage> {
           }
         },
         child: AlertDialog(
-          title: const Text('تسجيل الخروج'),
-          content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+          title: Text(l10n.profile_logout),
+          content: Text(l10n.profile_logoutConfirm),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('إلغاء'),
+              child: Text(l10n.common_cancel),
             ),
             TextButton(
               onPressed: () {
                 // Dispatch sign out event - navigation handled by BlocListener
                 authBloc.add(const AuthSignOutRequested());
               },
-              child: const Text(
-                'تسجيل الخروج',
-                style: TextStyle(color: AppColors.error),
+              child: Text(
+                l10n.profile_logout,
+                style: const TextStyle(color: AppColors.error),
               ),
             ),
           ],
@@ -355,10 +419,17 @@ class _DarkModeSheet extends StatefulWidget {
 }
 
 class _DarkModeSheetState extends State<_DarkModeSheet> {
-  int _selectedMode = 0; // 0: System, 1: Light, 2: Dark
+  late AppThemeMode _selectedMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMode = context.read<ThemeBloc>().state.mode;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -371,7 +442,7 @@ class _DarkModeSheetState extends State<_DarkModeSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'الوضع الداكن',
+                l10n.theme_title,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -380,41 +451,35 @@ class _DarkModeSheetState extends State<_DarkModeSheet> {
               const SizedBox(height: AppSpacing.lg),
               _buildModeOption(
                 icon: Icons.phone_android,
-                title: 'حسب النظام',
-                subtitle: 'يتبع إعدادات الجهاز',
-                value: 0,
+                title: l10n.theme_system,
+                subtitle: l10n.theme_systemSubtitle,
+                value: AppThemeMode.system,
               ),
               const SizedBox(height: AppSpacing.sm),
               _buildModeOption(
                 icon: Icons.light_mode,
-                title: 'الوضع الفاتح',
-                subtitle: 'دائماً فاتح',
-                value: 1,
+                title: l10n.theme_light,
+                subtitle: l10n.theme_lightSubtitle,
+                value: AppThemeMode.light,
               ),
               const SizedBox(height: AppSpacing.sm),
               _buildModeOption(
                 icon: Icons.dark_mode,
-                title: 'الوضع الداكن',
-                subtitle: 'دائماً داكن',
-                value: 2,
+                title: l10n.theme_dark,
+                subtitle: l10n.theme_darkSubtitle,
+                value: AppThemeMode.dark,
               ),
               const SizedBox(height: AppSpacing.lg),
               RibalButton(
-                text: 'حفظ',
+                text: l10n.common_save,
                 onPressed: () {
-                  // TODO: Implement theme persistence
+                  context.read<ThemeBloc>().add(ThemeModeChanged(_selectedMode));
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('سيتم دعم الوضع الداكن قريباً'),
-                      backgroundColor: AppColors.primary,
-                    ),
-                  );
                 },
               ),
               const SizedBox(height: AppSpacing.sm),
               RibalButton(
-                text: 'إلغاء',
+                text: l10n.common_cancel,
                 variant: RibalButtonVariant.outline,
                 onPressed: () => Navigator.pop(context),
               ),
@@ -429,7 +494,7 @@ class _DarkModeSheetState extends State<_DarkModeSheet> {
     required IconData icon,
     required String title,
     required String subtitle,
-    required int value,
+    required AppThemeMode value,
   }) {
     final isSelected = _selectedMode == value;
     return InkWell(
@@ -438,10 +503,10 @@ class _DarkModeSheetState extends State<_DarkModeSheet> {
       child: Container(
         padding: AppSpacing.cardPadding,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primarySurface : AppColors.surface,
+          color: isSelected ? context.colors.primarySurface : context.colors.surface,
           borderRadius: AppSpacing.borderRadiusMd,
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? AppColors.primary : context.colors.border,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -449,7 +514,7 @@ class _DarkModeSheetState extends State<_DarkModeSheet> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              color: isSelected ? AppColors.primary : context.colors.textSecondary,
               size: AppSpacing.iconLg,
             ),
             const SizedBox(width: AppSpacing.md),
@@ -462,13 +527,145 @@ class _DarkModeSheetState extends State<_DarkModeSheet> {
                     style: AppTypography.titleMedium.copyWith(
                       color: isSelected
                           ? AppColors.primary
-                          : AppColors.textPrimary,
+                          : context.colors.textPrimary,
                     ),
                   ),
                   Text(
                     subtitle,
                     style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: AppColors.primary,
+                size: AppSpacing.iconLg,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Language Bottom Sheet
+class _LanguageSheet extends StatefulWidget {
+  const _LanguageSheet();
+
+  @override
+  State<_LanguageSheet> createState() => _LanguageSheetState();
+}
+
+class _LanguageSheetState extends State<_LanguageSheet> {
+  late AppLocale _selectedLocale;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLocale = context.read<LocaleBloc>().state.appLocale;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Container(
+          padding: AppSpacing.dialogPadding,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.language_title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _buildLocaleOption(
+                title: l10n.language_arabic,
+                subtitle: l10n.language_arabicSubtitle,
+                value: AppLocale.arabic,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _buildLocaleOption(
+                title: l10n.language_english,
+                subtitle: l10n.language_englishSubtitle,
+                value: AppLocale.english,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              RibalButton(
+                text: l10n.common_save,
+                onPressed: () {
+                  context.read<LocaleBloc>().add(LocaleChanged(_selectedLocale));
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              RibalButton(
+                text: l10n.common_cancel,
+                variant: RibalButtonVariant.outline,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocaleOption({
+    required String title,
+    required String subtitle,
+    required AppLocale value,
+  }) {
+    final isSelected = _selectedLocale == value;
+    return InkWell(
+      onTap: () => setState(() => _selectedLocale = value),
+      borderRadius: AppSpacing.borderRadiusMd,
+      child: Container(
+        padding: AppSpacing.cardPadding,
+        decoration: BoxDecoration(
+          color: isSelected ? context.colors.primarySurface : context.colors.surface,
+          borderRadius: AppSpacing.borderRadiusMd,
+          border: Border.all(
+            color: isSelected ? AppColors.primary : context.colors.border,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.language,
+              color: isSelected ? AppColors.primary : context.colors.textSecondary,
+              size: AppSpacing.iconLg,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.titleMedium.copyWith(
+                      color: isSelected
+                          ? AppColors.primary
+                          : context.colors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
@@ -583,13 +780,14 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthProfileUpdateSuccess) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم حفظ التغييرات بنجاح'),
+            SnackBar(
+              content: Text(l10n.profile_changesSaved),
               backgroundColor: AppColors.success,
             ),
           );
@@ -617,7 +815,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'تعديل الملف الشخصي',
+                    l10n.profile_editProfile,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -695,9 +893,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   const SizedBox(height: AppSpacing.xs),
                   Center(
                     child: Text(
-                      'اضغط لتغيير الصورة',
+                      l10n.profile_tapToChangePhoto,
                       style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ),
@@ -705,13 +903,13 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
                   RibalTextField(
                     controller: _firstNameController,
-                    label: 'الاسم الأول',
-                    hint: 'أدخل الاسم الأول',
+                    label: l10n.auth_firstName,
+                    hint: l10n.auth_firstNameHint,
                     prefixIcon: Icons.person_outline,
                     textInputAction: TextInputAction.next,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'الاسم الأول مطلوب';
+                        return l10n.auth_firstNameRequired;
                       }
                       return null;
                     },
@@ -719,13 +917,13 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   const SizedBox(height: AppSpacing.md),
                   RibalTextField(
                     controller: _lastNameController,
-                    label: 'اسم العائلة',
-                    hint: 'أدخل اسم العائلة',
+                    label: l10n.auth_lastName,
+                    hint: l10n.auth_lastNameHint,
                     prefixIcon: Icons.person_outline,
                     textInputAction: TextInputAction.next,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'اسم العائلة مطلوب';
+                        return l10n.auth_lastNameRequired;
                       }
                       return null;
                     },
@@ -733,32 +931,32 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   const SizedBox(height: AppSpacing.md),
                   RibalTextField(
                     controller: _emailController,
-                    label: 'البريد الإلكتروني',
-                    hint: 'أدخل البريد الإلكتروني',
+                    label: l10n.auth_email,
+                    hint: l10n.auth_emailHint,
                     prefixIcon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.done,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'البريد الإلكتروني مطلوب';
+                        return l10n.auth_emailRequired;
                       }
                       final emailRegex =
                           RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                       if (!emailRegex.hasMatch(value)) {
-                        return 'البريد الإلكتروني غير صالح';
+                        return l10n.auth_emailInvalid;
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   RibalButton(
-                    text: 'حفظ التغييرات',
+                    text: l10n.common_saveChanges,
                     isLoading: _isSubmitting || _isUploadingImage,
                     onPressed: _submit,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   RibalButton(
-                    text: 'إلغاء',
+                    text: l10n.common_cancel,
                     variant: RibalButtonVariant.outline,
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -773,7 +971,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
   Widget _buildAvatarPlaceholder() {
     return Container(
-      color: AppColors.primarySurface,
+      color: context.colors.primarySurface,
       child: Center(
         child: Text(
           widget.user.initials,
@@ -832,13 +1030,14 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthPasswordChangeSuccess) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم تغيير كلمة المرور بنجاح'),
+            SnackBar(
+              content: Text(l10n.auth_passwordChanged),
               backgroundColor: AppColors.success,
             ),
           );
@@ -866,7 +1065,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'تغيير كلمة المرور',
+                    l10n.profile_changePassword,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -875,14 +1074,14 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   const SizedBox(height: AppSpacing.lg),
                   RibalTextField(
                     controller: _currentPasswordController,
-                    label: 'كلمة المرور الحالية',
-                    hint: 'أدخل كلمة المرور الحالية',
+                    label: l10n.auth_passwordCurrent,
+                    hint: l10n.auth_passwordCurrentHint,
                     prefixIcon: Icons.lock_outline,
                     obscureText: true,
                     textInputAction: TextInputAction.next,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'كلمة المرور الحالية مطلوبة';
+                        return l10n.auth_passwordCurrentRequired;
                       }
                       return null;
                     },
@@ -890,17 +1089,17 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   const SizedBox(height: AppSpacing.md),
                   RibalTextField(
                     controller: _newPasswordController,
-                    label: 'كلمة المرور الجديدة',
-                    hint: 'أدخل كلمة المرور الجديدة',
+                    label: l10n.auth_passwordNew,
+                    hint: l10n.auth_passwordNewHint,
                     prefixIcon: Icons.lock_outline,
                     obscureText: true,
                     textInputAction: TextInputAction.next,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'كلمة المرور الجديدة مطلوبة';
+                        return l10n.auth_passwordNewRequired;
                       }
                       if (value.length < 8) {
-                        return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+                        return l10n.auth_passwordMinLength;
                       }
                       return null;
                     },
@@ -908,30 +1107,30 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   const SizedBox(height: AppSpacing.md),
                   RibalTextField(
                     controller: _confirmPasswordController,
-                    label: 'تأكيد كلمة المرور',
-                    hint: 'أعد إدخال كلمة المرور الجديدة',
+                    label: l10n.auth_passwordConfirm,
+                    hint: l10n.auth_passwordConfirmHint,
                     prefixIcon: Icons.lock_outline,
                     obscureText: true,
                     textInputAction: TextInputAction.done,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'تأكيد كلمة المرور مطلوب';
+                        return l10n.auth_passwordConfirmRequired;
                       }
                       if (value != _newPasswordController.text) {
-                        return 'كلمة المرور غير متطابقة';
+                        return l10n.auth_passwordMismatch;
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   RibalButton(
-                    text: 'تغيير كلمة المرور',
+                    text: l10n.profile_changePassword,
                     isLoading: _isSubmitting,
                     onPressed: _submit,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   RibalButton(
-                    text: 'إلغاء',
+                    text: l10n.common_cancel,
                     variant: RibalButtonVariant.outline,
                     onPressed: () => Navigator.pop(context),
                   ),

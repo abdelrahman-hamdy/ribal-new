@@ -65,6 +65,18 @@ class TaskModel with _$TaskModel {
   factory TaskModel.fromJson(Map<String, dynamic> json) =>
       _$TaskModelFromJson(json);
 
+  /// Create fake data for skeleton loading
+  factory TaskModel.fake() => TaskModel(
+        id: 'fake-id',
+        title: 'عنوان المهمة يتم تحميله',
+        description: 'وصف المهمة يتم تحميله من السيرفر',
+        labelIds: const ['fake-label-1', 'fake-label-2'],
+        assigneeSelection: AssigneeSelection.all,
+        createdBy: 'fake-creator-id',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
   /// Create from Firestore document
   factory TaskModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;

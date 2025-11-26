@@ -812,6 +812,187 @@ export const triggerTaskCleanup = onRequest(async (req, res) => {
 });
 
 // ============================================
+// OVERDUE ASSIGNMENTS & DEADLINE WARNINGS
+// ============================================
+
+/**
+ * Scheduled: Mark pending assignments as overdue
+ * Runs at 20:10 (10 minutes after default deadline)
+ * This marks all pending assignments for today as 'overdue'
+ */
+export const markOverdueAssignments = onSchedule({
+  schedule: "10 20 * * *", // Run at 20:10 every day (10 min after 20:00 deadline)
+  timeZone: "Asia/Riyadh",
+}, async () => {
+  console.log("Starting overdue assignments marking...");
+
+  // Get settings for deadline time
+  const settings = await getSettings();
+  console.log(`Current deadline setting: ${settings.taskDeadline}`);
+
+  // Calculate today's date range in Riyadh timezone
+  const now = new Date();
+  const riyadhOffsetMs = 3 * 60 * 60 * 1000;
+  const riyadhNow = new Date(now.getTime() + riyadhOffsetMs);
+
+  // Today's start and end in UTC (adjusted for Riyadh)
+  const year = riyadhNow.getUTCFullYear();
+  const month = riyadhNow.getUTCMonth();
+  const date = riyadhNow.getUTCDate();
+  const todayStart = new Date(Date.UTC(year, month, date, 0, 0, 0, 0) - riyadhOffsetMs);
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  console.log(`Today range: ${todayStart.toISOString()} to ${todayEnd.toISOString()}`);
+
+  // Find all pending assignments scheduled for today
+  const pendingSnapshot = await db
+    .collection("assignments")
+    .where("status", "==", "pending")
+    .where("scheduledDate", ">=", Timestamp.fromDate(todayStart))
+    .where("scheduledDate", "<", Timestamp.fromDate(todayEnd))
+    .get();
+
+  if (pendingSnapshot.empty) {
+    console.log("No pending assignments found for today");
+    return;
+  }
+
+  console.log(`Found ${pendingSnapshot.size} pending assignments to mark as overdue`);
+
+  // Batch update assignments to 'overdue' status
+  const overdueTimestamp = Timestamp.now();
+  let updatedCount = 0;
+  const userOverdueCounts: Map<string, number> = new Map();
+
+  for (let i = 0; i < pendingSnapshot.docs.length; i += 500) {
+    const batch = db.batch();
+    const chunk = pendingSnapshot.docs.slice(i, i + 500);
+
+    chunk.forEach((doc) => {
+      const data = doc.data();
+      const userId = data.userId;
+
+      batch.update(doc.ref, {
+        status: "overdue",
+        overdueAt: overdueTimestamp,
+      });
+      updatedCount++;
+
+      // Track overdue count per user for notifications
+      userOverdueCounts.set(userId, (userOverdueCounts.get(userId) || 0) + 1);
+    });
+
+    await batch.commit();
+  }
+
+  console.log(`Marked ${updatedCount} assignments as overdue`);
+
+  // Create notifications for users with overdue assignments
+  const notificationBatch = db.batch();
+  let notificationCount = 0;
+
+  for (const [userId, count] of userOverdueCounts) {
+    const notificationRef = db.collection("notifications").doc();
+    notificationBatch.set(notificationRef, {
+      userId,
+      type: "taskOverdue",
+      title: "مهام متأخرة",
+      body: count === 1
+        ? "لديك مهمة واحدة متأخرة لم يتم إنجازها قبل الموعد النهائي"
+        : `لديك ${count} مهام متأخرة لم يتم إنجازها قبل الموعد النهائي`,
+      iconName: "error",
+      iconColor: "#EF4444",
+      isSeen: false,
+      isRead: false,
+      createdAt: overdueTimestamp,
+    });
+    notificationCount++;
+  }
+
+  if (notificationCount > 0) {
+    await notificationBatch.commit();
+    console.log(`Created ${notificationCount} overdue notifications`);
+  }
+
+  console.log("Overdue marking complete");
+});
+
+/**
+ * Scheduled: Send deadline warning notifications
+ * Runs at 19:00 (1 hour before default deadline)
+ * Warns users who have pending assignments
+ */
+export const sendDeadlineWarnings = onSchedule({
+  schedule: "0 19 * * *", // Run at 19:00 every day
+  timeZone: "Asia/Riyadh",
+}, async () => {
+  console.log("Starting deadline warning notifications...");
+
+  // Get settings
+  const settings = await getSettings();
+  console.log(`Deadline setting: ${settings.taskDeadline}`);
+
+  // Calculate today's date range in Riyadh timezone
+  const now = new Date();
+  const riyadhOffsetMs = 3 * 60 * 60 * 1000;
+  const riyadhNow = new Date(now.getTime() + riyadhOffsetMs);
+
+  const year = riyadhNow.getUTCFullYear();
+  const month = riyadhNow.getUTCMonth();
+  const date = riyadhNow.getUTCDate();
+  const todayStart = new Date(Date.UTC(year, month, date, 0, 0, 0, 0) - riyadhOffsetMs);
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  // Find all pending assignments scheduled for today
+  const pendingSnapshot = await db
+    .collection("assignments")
+    .where("status", "==", "pending")
+    .where("scheduledDate", ">=", Timestamp.fromDate(todayStart))
+    .where("scheduledDate", "<", Timestamp.fromDate(todayEnd))
+    .get();
+
+  if (pendingSnapshot.empty) {
+    console.log("No pending assignments found - no warnings needed");
+    return;
+  }
+
+  // Group by user
+  const userPendingCounts: Map<string, number> = new Map();
+  pendingSnapshot.docs.forEach((doc) => {
+    const userId = doc.data().userId;
+    userPendingCounts.set(userId, (userPendingCounts.get(userId) || 0) + 1);
+  });
+
+  console.log(`Found ${userPendingCounts.size} users with pending assignments`);
+
+  // Create warning notifications
+  const warningTimestamp = Timestamp.now();
+  const batch = db.batch();
+  let notificationCount = 0;
+
+  for (const [userId, count] of userPendingCounts) {
+    const notificationRef = db.collection("notifications").doc();
+    batch.set(notificationRef, {
+      userId,
+      type: "deadlineWarning",
+      title: "تذكير بالموعد النهائي",
+      body: count === 1
+        ? `لديك مهمة واحدة لم تنجزها بعد. الموعد النهائي ${settings.taskDeadline}`
+        : `لديك ${count} مهام لم تنجزها بعد. الموعد النهائي ${settings.taskDeadline}`,
+      iconName: "schedule",
+      iconColor: "#F59E0B",
+      isSeen: false,
+      isRead: false,
+      createdAt: warningTimestamp,
+    });
+    notificationCount++;
+  }
+
+  await batch.commit();
+  console.log(`Sent ${notificationCount} deadline warning notifications`);
+});
+
+// ============================================
 // CLOUDINARY SIGNED UPLOADS
 // ============================================
 

@@ -80,33 +80,58 @@ class TaskProgress {
   final int completedCount;
   final int pendingCount;
   final int apologizedCount;
+  final int overdueCount;
 
   const TaskProgress({
     required this.totalAssignments,
     required this.completedCount,
     required this.pendingCount,
     required this.apologizedCount,
+    this.overdueCount = 0,
   });
 
   /// Create from a list of assignments
-  factory TaskProgress.fromAssignments(List<AssignmentModel> assignments) {
+  /// [deadline] - Optional task deadline to calculate pending-but-overdue count
+  /// Note: Assignments with status 'overdue' are always counted as overdue,
+  /// plus any pending assignments past deadline (before Cloud Function marks them)
+  factory TaskProgress.fromAssignments(
+    List<AssignmentModel> assignments, {
+    DateTime? deadline,
+  }) {
     if (assignments.isEmpty) {
       return const TaskProgress(
         totalAssignments: 0,
         completedCount: 0,
         pendingCount: 0,
         apologizedCount: 0,
+        overdueCount: 0,
       );
     }
 
+    final now = DateTime.now();
+    final isPastDeadline = deadline != null && now.isAfter(deadline);
+
+    // Count by status
+    final completedCount =
+        assignments.where((a) => a.status == AssignmentStatus.completed).length;
+    final apologizedCount =
+        assignments.where((a) => a.status == AssignmentStatus.apologized).length;
+    final markedOverdueCount =
+        assignments.where((a) => a.status == AssignmentStatus.overdue).length;
+    final pendingAssignments =
+        assignments.where((a) => a.status == AssignmentStatus.pending);
+
+    // Overdue count: status=overdue + pending past deadline (real-time display)
+    final pendingOverdueCount = isPastDeadline ? pendingAssignments.length : 0;
+    final totalOverdueCount = markedOverdueCount + pendingOverdueCount;
+
     return TaskProgress(
       totalAssignments: assignments.length,
-      completedCount:
-          assignments.where((a) => a.status == AssignmentStatus.completed).length,
-      pendingCount:
-          assignments.where((a) => a.status == AssignmentStatus.pending).length,
-      apologizedCount:
-          assignments.where((a) => a.status == AssignmentStatus.apologized).length,
+      completedCount: completedCount,
+      // Pending count excludes those calculated as overdue (real-time)
+      pendingCount: pendingAssignments.length - pendingOverdueCount,
+      apologizedCount: apologizedCount,
+      overdueCount: totalOverdueCount,
     );
   }
 
@@ -116,6 +141,7 @@ class TaskProgress {
     completedCount: 0,
     pendingCount: 0,
     apologizedCount: 0,
+    overdueCount: 0,
   );
 
   /// Completion rate as a decimal (0.0 - 1.0)
@@ -158,13 +184,14 @@ class TaskProgress {
     if (completedCount > 0) parts.add('$completedCount مكتمل');
     if (pendingCount > 0) parts.add('$pendingCount قيد الانتظار');
     if (apologizedCount > 0) parts.add('$apologizedCount معتذر');
+    if (overdueCount > 0) parts.add('$overdueCount متأخر');
     return parts.join(' • ');
   }
 
   @override
   String toString() {
     return 'TaskProgress(total: $totalAssignments, completed: $completedCount, '
-        'pending: $pendingCount, apologized: $apologizedCount)';
+        'pending: $pendingCount, apologized: $apologizedCount, overdue: $overdueCount)';
   }
 
   @override
@@ -174,7 +201,8 @@ class TaskProgress {
         other.totalAssignments == totalAssignments &&
         other.completedCount == completedCount &&
         other.pendingCount == pendingCount &&
-        other.apologizedCount == apologizedCount;
+        other.apologizedCount == apologizedCount &&
+        other.overdueCount == overdueCount;
   }
 
   @override
@@ -184,6 +212,7 @@ class TaskProgress {
       completedCount,
       pendingCount,
       apologizedCount,
+      overdueCount,
     );
   }
 }

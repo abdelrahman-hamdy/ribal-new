@@ -9,6 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/feedback/error_state.dart';
 import '../../../../core/widgets/feedback/loading_state.dart';
 import '../../../../core/widgets/task/task.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../admin/tasks/bloc/task_detail_bloc.dart';
 
 class ManagerTaskDetailPage extends StatelessWidget {
@@ -30,15 +31,16 @@ class _ManagerTaskDetailContent extends StatelessWidget {
   const _ManagerTaskDetailContent();
 
   void _showDeleteConfirmation(BuildContext context, String taskId) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('حذف المهمة'),
-        content: const Text('هل أنت متأكد من حذف هذه المهمة؟ لا يمكن التراجع عن هذا الإجراء.'),
+        title: Text(l10n.task_delete),
+        content: Text(l10n.task_deleteConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -46,7 +48,7 @@ class _ManagerTaskDetailContent extends StatelessWidget {
               context.read<TaskDetailBloc>().add(TaskDetailDeleteRequested(taskId: taskId));
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('حذف'),
+            child: Text(l10n.common_delete),
           ),
         ],
       ),
@@ -54,17 +56,16 @@ class _ManagerTaskDetailContent extends StatelessWidget {
   }
 
   void _showArchiveConfirmation(BuildContext context, String taskId) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('إيقاف المهمة المتكررة'),
-        content: const Text(
-          'سيتم أرشفة هذه المهمة ولن يتم نشرها للموظفين حتى تقوم بإعادة تفعيلها.',
-        ),
+        title: Text(l10n.task_stopRecurring),
+        content: Text(l10n.task_stopRecurringConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -72,7 +73,7 @@ class _ManagerTaskDetailContent extends StatelessWidget {
               context.read<TaskDetailBloc>().add(TaskDetailArchiveRequested(taskId: taskId));
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.warning),
-            child: const Text('إيقاف وأرشفة'),
+            child: Text(l10n.task_stopArchive),
           ),
         ],
       ),
@@ -81,9 +82,10 @@ class _ManagerTaskDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تفاصيل المهمة'),
+        title: Text(l10n.task_details),
       ),
       body: BlocConsumer<TaskDetailBloc, TaskDetailState>(
         listenWhen: (previous, current) {
@@ -96,7 +98,7 @@ class _ManagerTaskDetailContent extends StatelessWidget {
           if (state.isDeleted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.successMessage ?? 'تم حذف المهمة بنجاح'),
+                content: Text(state.successMessage ?? l10n.task_deletedSuccess),
                 backgroundColor: AppColors.success,
               ),
             );
@@ -106,7 +108,7 @@ class _ManagerTaskDetailContent extends StatelessWidget {
           if (state.isArchived) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.successMessage ?? 'تم أرشفة المهمة بنجاح'),
+                content: Text(state.successMessage ?? l10n.task_archivedSuccess),
                 backgroundColor: AppColors.success,
               ),
             );
@@ -132,13 +134,13 @@ class _ManagerTaskDetailContent extends StatelessWidget {
         },
         builder: (context, state) {
           if (state.isLoading && state.task == null) {
-            return const LoadingState(message: 'جاري تحميل المهمة...');
+            return LoadingState(message: l10n.task_loading);
           }
 
           if (state.task == null) {
-            return const ErrorState(
+            return ErrorState(
               icon: Icons.error_outline,
-              message: 'فشل في تحميل المهمة',
+              message: l10n.task_loadError,
             );
           }
 
@@ -169,6 +171,7 @@ class _ManagerTaskDetailContent extends StatelessWidget {
                   // Assignees section (shared widget - no user tap, no attachment view)
                   TaskAssigneesSection(
                     state: state,
+                    showViewNotes: true,
                   ),
                 ],
               ),

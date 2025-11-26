@@ -183,7 +183,7 @@ class _NotificationTile extends StatelessWidget {
         child: Container(
           padding: AppSpacing.listItemPadding,
           // Unread notifications have highlighted background
-          color: isUnread ? AppColors.primarySurface : AppColors.surface,
+          color: isUnread ? context.colors.primarySurface : context.colors.surface,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -216,8 +216,11 @@ class _NotificationTile extends StatelessWidget {
                             style: isUnread
                                 ? AppTypography.titleMedium.copyWith(
                                     fontWeight: FontWeight.w600,
+                                    color: context.colors.textPrimary,
                                   )
-                                : AppTypography.titleMedium,
+                                : AppTypography.titleMedium.copyWith(
+                                    color: context.colors.textPrimary,
+                                  ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -237,7 +240,9 @@ class _NotificationTile extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       notification.body,
-                      style: AppTypography.bodyMedium,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: context.colors.textSecondary,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -245,7 +250,7 @@ class _NotificationTile extends StatelessWidget {
                     Text(
                       timeago.format(notification.createdAt, locale: 'ar'),
                       style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textTertiary,
+                        color: context.colors.textTertiary,
                       ),
                     ),
                   ],
@@ -278,12 +283,18 @@ class _NotificationTile extends StatelessWidget {
         return Icons.refresh;
       case NotificationType.taskMarkedDone:
         return Icons.done_all;
+      case NotificationType.taskOverdue:
+        return Icons.error_outline;
+      case NotificationType.deadlineWarning:
+        return Icons.schedule;
       case NotificationType.recurringScheduled:
         return Icons.repeat;
       case NotificationType.invitationAccepted:
         return Icons.person_add_alt;
       case NotificationType.roleChanged:
         return Icons.swap_horiz;
+      case NotificationType.noteReceived:
+        return Icons.chat_bubble_outline;
     }
   }
 }

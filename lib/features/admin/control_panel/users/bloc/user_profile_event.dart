@@ -12,14 +12,16 @@ abstract class UserProfileEvent extends Equatable {
 class UserProfileLoadRequested extends UserProfileEvent {
   final String userId;
   final String currentUserId;
+  final UserRole currentUserRole;
 
   const UserProfileLoadRequested({
     required this.userId,
     required this.currentUserId,
+    required this.currentUserRole,
   });
 
   @override
-  List<Object?> get props => [userId, currentUserId];
+  List<Object?> get props => [userId, currentUserId, currentUserRole];
 }
 
 /// Change time filter

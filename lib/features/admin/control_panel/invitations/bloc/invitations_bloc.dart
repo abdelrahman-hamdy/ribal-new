@@ -34,8 +34,16 @@ class InvitationsBloc extends Bloc<InvitationsEvent, InvitationsState> {
     await _invitationsSubscription?.cancel();
 
     _invitationsSubscription = _invitationRepository.streamAllInvitations().listen(
-      (invitations) => add(_InvitationsDataReceived(invitations: invitations)),
-      onError: (error) => add(const _InvitationsErrorReceived()),
+      (invitations) {
+        if (!isClosed) {
+          add(_InvitationsDataReceived(invitations: invitations));
+        }
+      },
+      onError: (error) {
+        if (!isClosed) {
+          add(const _InvitationsErrorReceived());
+        }
+      },
     );
   }
 

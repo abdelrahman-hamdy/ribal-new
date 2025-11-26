@@ -87,7 +87,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: context.colors.background,
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
@@ -117,7 +117,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     // Title
                     Text(
                       'تحقق من بريدك الإلكتروني',
-                      style: AppTypography.displaySmall,
+                      style: AppTypography.displaySmall.copyWith(
+                        color: context.colors.textPrimary,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -126,7 +128,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     Text(
                       'أرسلنا رسالة تحقق إلى',
                       style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -142,7 +144,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     Text(
                       'يرجى النقر على الرابط في الرسالة للتحقق من حسابك',
                       style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -163,7 +165,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                         Text(
                           'في انتظار التحقق...',
                           style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],

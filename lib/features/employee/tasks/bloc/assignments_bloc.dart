@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
@@ -7,9 +8,11 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/utils/ksa_timezone.dart';
 import '../../../../data/models/assignment_model.dart';
 import '../../../../data/models/task_model.dart';
+import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/assignment_repository.dart';
 import '../../../../data/repositories/settings_repository.dart';
 import '../../../../data/repositories/task_repository.dart';
+import '../../../../data/repositories/user_repository.dart';
 
 part 'assignments_event.dart';
 part 'assignments_state.dart';
@@ -19,19 +22,21 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
   final AssignmentRepository _assignmentRepository;
   final TaskRepository _taskRepository;
   final SettingsRepository _settingsRepository;
-  StreamSubscription? _assignmentsSubscription;
+  final UserRepository _userRepository;
 
   /// Cache for task details to avoid repeated fetches
   final Map<String, TaskModel> _taskCache = {};
+
+  /// Cache for user details to avoid repeated fetches
+  final Map<String, UserModel> _userCache = {};
 
   AssignmentsBloc(
     this._assignmentRepository,
     this._taskRepository,
     this._settingsRepository,
+    this._userRepository,
   ) : super(AssignmentsState.initial()) {
     on<AssignmentsLoadRequested>(_onLoadRequested);
-    on<_AssignmentsStreamUpdated>(_onStreamUpdated);
-    on<_AssignmentsStreamError>(_onStreamError);
     on<AssignmentMarkCompletedRequested>(_onMarkCompletedRequested);
     on<AssignmentApologizeRequested>(_onApologizeRequested);
     on<AssignmentReactivateRequested>(_onReactivateRequested);
@@ -43,92 +48,121 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
     AssignmentsLoadRequested event,
     Emitter<AssignmentsState> emit,
   ) async {
+    final overallStart = DateTime.now();
+    debugPrint('[AssignmentsBloc] 🚀 _onLoadRequested() started');
+
+    final emitStart = DateTime.now();
     emit(state.copyWith(isLoading: true, clearError: true, userId: event.userId));
+    final emitDuration = DateTime.now().difference(emitStart);
+    debugPrint('[AssignmentsBloc] ⏱️ Initial emit took: ${emitDuration.inMilliseconds}ms');
 
     try {
       // Fetch settings for deadline
+      final settingsStart = DateTime.now();
       final settings = await _settingsRepository.getSettings();
+      final settingsDuration = DateTime.now().difference(settingsStart);
+      debugPrint('[AssignmentsBloc] ⚙️ Settings fetch took: ${settingsDuration.inMilliseconds}ms');
 
-      await _assignmentsSubscription?.cancel();
-
-      _assignmentsSubscription = _assignmentRepository
-          .streamAssignmentsForUserOnDate(
-            userId: event.userId,
-            date: state.selectedDate,
-          )
-          .asyncMap((assignments) async {
-        // Fetch task details for each assignment
-        final assignmentsWithTasks =
-            await _fetchTaskDetailsForAssignments(assignments);
-        return assignmentsWithTasks;
-      }).listen(
-        (assignmentsWithTasks) {
-          // Dispatch internal event instead of calling emit directly
-          add(_AssignmentsStreamUpdated(
-            userId: event.userId,
-            assignmentsWithTasks: assignmentsWithTasks,
-            taskDeadline: settings.taskDeadline,
-          ));
-        },
-        onError: (error) {
-          add(const _AssignmentsStreamError(errorMessage: 'فشل في تحميل المهام'));
-        },
+      // Use cache-first strategy - NO STREAMS!
+      final assignmentsStart = DateTime.now();
+      final assignments = await _assignmentRepository.getAssignmentsForUserOnDate(
+        userId: event.userId,
+        date: state.selectedDate,
       );
+      final assignmentsDuration = DateTime.now().difference(assignmentsStart);
+      debugPrint('[AssignmentsBloc] 📋 Assignments fetch took: ${assignmentsDuration.inMilliseconds}ms');
+
+      // Fetch task details for each assignment
+      final taskDetailsStart = DateTime.now();
+      final assignmentsWithTasks = await _fetchTaskDetailsForAssignments(assignments);
+      final taskDetailsDuration = DateTime.now().difference(taskDetailsStart);
+      debugPrint('[AssignmentsBloc] 📝 Task details fetch took: ${taskDetailsDuration.inMilliseconds}ms');
+
+      final mappingStart = DateTime.now();
+      final rawAssignments = assignmentsWithTasks.map((a) => a.assignment).toList();
+      final mappingDuration = DateTime.now().difference(mappingStart);
+      debugPrint('[AssignmentsBloc] 🗺️ Mapping took: ${mappingDuration.inMilliseconds}ms');
+
+      final filterStart = DateTime.now();
+      final filteredAssignments = _applyFilter(rawAssignments, state.filterStatus);
+      final filteredAssignmentsWithTasks = _applyFilterWithTasks(assignmentsWithTasks, state.filterStatus);
+      final filterDuration = DateTime.now().difference(filterStart);
+      debugPrint('[AssignmentsBloc] 🔍 Filtering took: ${filterDuration.inMilliseconds}ms');
+
+      final finalEmitStart = DateTime.now();
+      emit(state.copyWith(
+        userId: event.userId,
+        assignments: rawAssignments,
+        assignmentsWithTasks: assignmentsWithTasks,
+        filteredAssignments: filteredAssignments,
+        filteredAssignmentsWithTasks: filteredAssignmentsWithTasks,
+        isLoading: false,
+        taskDeadline: settings.taskDeadline,
+        hasLoadedOnce: true,
+      ));
+      final finalEmitDuration = DateTime.now().difference(finalEmitStart);
+      debugPrint('[AssignmentsBloc] ⏱️ Final emit took: ${finalEmitDuration.inMilliseconds}ms');
+
+      final totalDuration = DateTime.now().difference(overallStart);
+      debugPrint('[AssignmentsBloc] ✅ TOTAL _onLoadRequested took: ${totalDuration.inMilliseconds}ms');
     } catch (e) {
+      debugPrint('[AssignmentsBloc] ❌ Error in _onLoadRequested: $e');
       emit(state.copyWith(
         isLoading: false,
+        hasLoadedOnce: true,
         errorMessage: 'فشل في تحميل المهام',
       ));
     }
   }
 
-  void _onStreamUpdated(
-    _AssignmentsStreamUpdated event,
-    Emitter<AssignmentsState> emit,
-  ) {
-    final rawAssignments =
-        event.assignmentsWithTasks.map((a) => a.assignment).toList();
-    emit(state.copyWith(
-      userId: event.userId,
-      assignments: rawAssignments,
-      assignmentsWithTasks: event.assignmentsWithTasks,
-      filteredAssignments: _applyFilter(rawAssignments, state.filterStatus),
-      filteredAssignmentsWithTasks:
-          _applyFilterWithTasks(event.assignmentsWithTasks, state.filterStatus),
-      isLoading: false,
-      taskDeadline: event.taskDeadline,
-    ));
-  }
 
-  void _onStreamError(
-    _AssignmentsStreamError event,
-    Emitter<AssignmentsState> emit,
-  ) {
-    emit(state.copyWith(
-      isLoading: false,
-      errorMessage: event.errorMessage,
-    ));
-  }
-
-  /// Fetch task details for a list of assignments
+  /// Fetch task details for a list of assignments (OPTIMIZED: batch fetching)
   Future<List<AssignmentWithTask>> _fetchTaskDetailsForAssignments(
     List<AssignmentModel> assignments,
   ) async {
-    final result = <AssignmentWithTask>[];
+    if (assignments.isEmpty) return [];
 
+    final fetchStart = DateTime.now();
+    debugPrint('[AssignmentsBloc] 📋 Fetching task details for ${assignments.length} assignments');
+
+    // Extract all unique task IDs that need to be fetched
+    final taskIdsToFetch = <String>[];
     for (final assignment in assignments) {
-      // Check cache first
-      TaskModel? task = _taskCache[assignment.taskId];
-
-      if (task == null) {
-        // Fetch from repository
-        task = await _taskRepository.getTaskById(assignment.taskId);
-        if (task != null) {
-          _taskCache[assignment.taskId] = task;
-        }
+      if (!_taskCache.containsKey(assignment.taskId)) {
+        taskIdsToFetch.add(assignment.taskId);
       }
+    }
 
+    // BATCH FETCH all missing tasks at once (eliminates N+1 query!)
+    if (taskIdsToFetch.isNotEmpty) {
+      debugPrint('[AssignmentsBloc] 🔄 Batch fetching ${taskIdsToFetch.length} tasks');
+      final tasksMap = await _taskRepository.getTasksByIds(taskIdsToFetch);
+      _taskCache.addAll(tasksMap);
+    }
+
+    // Extract all unique creator IDs from tasks
+    final creatorIdsToFetch = <String>[];
+    for (final task in _taskCache.values) {
+      if (task.createdBy.isNotEmpty && !_userCache.containsKey(task.createdBy)) {
+        creatorIdsToFetch.add(task.createdBy);
+      }
+    }
+
+    // BATCH FETCH all missing creators at once (eliminates N+1 query!)
+    if (creatorIdsToFetch.isNotEmpty) {
+      debugPrint('[AssignmentsBloc] 👥 Batch fetching ${creatorIdsToFetch.length} creators');
+      final creatorsMap = await _userRepository.getUsersByIds(creatorIdsToFetch);
+      _userCache.addAll(creatorsMap);
+    }
+
+    // Build result from pre-fetched maps (instant lookups!)
+    final result = <AssignmentWithTask>[];
+    for (final assignment in assignments) {
+      final task = _taskCache[assignment.taskId];
       if (task != null) {
+        final creator = _userCache[task.createdBy];
+        final creatorName = creator?.fullName ?? 'غير معروف';
+
         result.add(AssignmentWithTask(
           assignment: assignment,
           taskTitle: task.title,
@@ -137,9 +171,13 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
           taskAttachmentUrl: task.attachmentUrl,
           taskAttachmentRequired: task.attachmentRequired,
           taskCreatorId: task.createdBy,
+          taskCreatorName: creatorName,
         ));
       }
     }
+
+    final duration = DateTime.now().difference(fetchStart);
+    debugPrint('[AssignmentsBloc] ✅ Built ${result.length} assignments with task details in ${duration.inMilliseconds}ms');
 
     return result;
   }
@@ -158,6 +196,11 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
       emit(state.copyWith(
         successMessage: 'تم تسليم المهمة بنجاح',
       ));
+
+      // Reload data after mutation (cache was cleared, will fetch fresh data)
+      if (state.userId != null && !isClosed) {
+        add(AssignmentsLoadRequested(userId: state.userId!));
+      }
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في تسليم المهمة',
@@ -179,6 +222,11 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
       emit(state.copyWith(
         successMessage: 'تم الاعتذار عن المهمة',
       ));
+
+      // Reload data after mutation (cache was cleared, will fetch fresh data)
+      if (state.userId != null && !isClosed) {
+        add(AssignmentsLoadRequested(userId: state.userId!));
+      }
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في الاعتذار',
@@ -197,6 +245,11 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
       emit(state.copyWith(
         successMessage: 'تم إعادة تفعيل المهمة',
       ));
+
+      // Reload data after mutation (cache was cleared, will fetch fresh data)
+      if (state.userId != null && !isClosed) {
+        add(AssignmentsLoadRequested(userId: state.userId!));
+      }
     } catch (e) {
       emit(state.copyWith(
         errorMessage: 'فشل في إعادة تفعيل المهمة',
@@ -208,34 +261,37 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
     AssignmentsDateChanged event,
     Emitter<AssignmentsState> emit,
   ) async {
-    emit(state.copyWith(selectedDate: event.date, isLoading: true));
+    emit(state.copyWith(selectedDate: event.date, isLoading: true, clearError: true));
 
-    if (state.userId != null) {
-      await _assignmentsSubscription?.cancel();
+    try {
+      if (state.userId != null) {
+        // Use cache-first strategy - NO STREAMS!
+        final assignments = await _assignmentRepository.getAssignmentsForUserOnDate(
+          userId: state.userId!,
+          date: event.date,
+        );
 
-      final userId = state.userId!;
-      _assignmentsSubscription = _assignmentRepository
-          .streamAssignmentsForUserOnDate(
-            userId: userId,
-            date: event.date,
-          )
-          .asyncMap((assignments) async {
         // Fetch task details for each assignment
-        final assignmentsWithTasks =
-            await _fetchTaskDetailsForAssignments(assignments);
-        return assignmentsWithTasks;
-      }).listen(
-        (assignmentsWithTasks) {
-          // Dispatch internal event instead of calling emit directly
-          add(_AssignmentsStreamUpdated(
-            userId: userId,
-            assignmentsWithTasks: assignmentsWithTasks,
-          ));
-        },
-        onError: (error) {
-          add(const _AssignmentsStreamError(errorMessage: 'فشل في تحميل المهام'));
-        },
-      );
+        final assignmentsWithTasks = await _fetchTaskDetailsForAssignments(assignments);
+
+        final rawAssignments = assignmentsWithTasks.map((a) => a.assignment).toList();
+
+        emit(state.copyWith(
+          assignments: rawAssignments,
+          assignmentsWithTasks: assignmentsWithTasks,
+          filteredAssignments: _applyFilter(rawAssignments, state.filterStatus),
+          filteredAssignmentsWithTasks: _applyFilterWithTasks(assignmentsWithTasks, state.filterStatus),
+          isLoading: false,
+          hasLoadedOnce: true,
+        ));
+      }
+    } catch (e) {
+      debugPrint('[AssignmentsBloc] Error in _onDateChanged: $e');
+      emit(state.copyWith(
+        isLoading: false,
+        hasLoadedOnce: true,
+        errorMessage: 'فشل في تحميل المهام',
+      ));
     }
   }
 
@@ -270,7 +326,9 @@ class AssignmentsBloc extends Bloc<AssignmentsEvent, AssignmentsState> {
 
   @override
   Future<void> close() {
-    _assignmentsSubscription?.cancel();
+    // Clear caches on close to prevent memory leaks
+    _taskCache.clear();
+    _userCache.clear();
     return super.close();
   }
 }

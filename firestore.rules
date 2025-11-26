@@ -97,6 +97,24 @@ service cloud.firestore {
       // Only Cloud Functions should create/delete assignments
       // But allow admins for manual management
       allow create, delete: if isAdmin();
+
+      // Notes subcollection for assignment conversations
+      match /notes/{noteId} {
+        // Allow reading notes if user is assignee or admin/manager
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.userId == request.auth.uid
+          || isAdminOrManager()
+        );
+
+        // Allow creating notes if user is authenticated (assignee or admin/manager)
+        allow create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.userId == request.auth.uid
+          || isAdminOrManager()
+        );
+
+        // Only admins can delete notes
+        allow delete: if isAdmin();
+      }
     }
 
     // Notifications collection

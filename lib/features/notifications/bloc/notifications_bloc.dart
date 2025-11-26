@@ -38,10 +38,14 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
         .streamNotificationsForUser(event.userId)
         .listen(
       (notifications) {
-        add(_NotificationsUpdated(notifications));
+        if (!isClosed) {
+          add(_NotificationsUpdated(notifications));
+        }
       },
       onError: (error) {
-        add(const _NotificationsUpdated([], error: 'فشل في تحميل الإشعارات'));
+        if (!isClosed) {
+          add(const _NotificationsUpdated([], error: 'فشل في تحميل الإشعارات'));
+        }
       },
     );
   }

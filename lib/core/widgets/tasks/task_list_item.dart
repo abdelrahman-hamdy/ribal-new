@@ -5,10 +5,14 @@ import '../../../data/models/label_model.dart';
 import '../../../data/models/task_model.dart';
 import '../../../data/models/task_progress.dart';
 import '../../../data/models/user_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 
 export '../../../data/models/user_model.dart' show UserRole;
+
+// Extension import for context.colors
+// ignore: unused_import
 
 /// A reusable task list item widget that displays task information
 /// Can be used in admin home page, manager home page, and assignment pages
@@ -52,9 +56,9 @@ class TaskListItem extends StatelessWidget {
       child: Container(
         padding: AppSpacing.cardPadding,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.colors.surface,
           borderRadius: AppSpacing.borderRadiusMd,
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.colors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +108,7 @@ class TaskListItem extends StatelessWidget {
                           task.title,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: context.colors.textPrimary,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -116,24 +120,29 @@ class TaskListItem extends StatelessWidget {
                 // Deadline time (floated left) - red when passed
                 if (deadlineText != null || isPassed) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isPassed ? Icons.error_outline : Icons.hourglass_bottom,
-                        size: 12,
-                        color: isPassed ? AppColors.error : AppColors.textTertiary,
-                      ),
-                      const SizedBox(width: AppSpacing.xxs),
-                      Text(
-                        isPassed ? 'منتهي' : deadlineText!,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isPassed ? AppColors.error : AppColors.textTertiary,
-                          fontSize: 11,
-                          fontWeight: isPassed ? FontWeight.w600 : null,
-                        ),
-                      ),
-                    ],
+                  Builder(
+                    builder: (context) {
+                      final l10n = AppLocalizations.of(context)!;
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isPassed ? Icons.error_outline : Icons.hourglass_bottom,
+                            size: 12,
+                            color: isPassed ? AppColors.error : context.colors.textTertiary,
+                          ),
+                          const SizedBox(width: AppSpacing.xxs),
+                          Text(
+                            isPassed ? l10n.task_deadlineExpired : deadlineText!,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isPassed ? AppColors.error : context.colors.textTertiary,
+                              fontSize: 11,
+                              fontWeight: isPassed ? FontWeight.w600 : null,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ],
@@ -285,8 +294,22 @@ class _StatusBadge extends StatelessWidget {
 
   const _StatusBadge({required this.status});
 
+  String _getStatusDisplayName(AppLocalizations l10n, AssignmentStatus status) {
+    switch (status) {
+      case AssignmentStatus.pending:
+        return l10n.task_statusPending;
+      case AssignmentStatus.completed:
+        return l10n.task_completed;
+      case AssignmentStatus.apologized:
+        return l10n.task_statusApologized;
+      case AssignmentStatus.overdue:
+        return l10n.task_statusOverdue;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final statusColor = AppColors.getStatusColor(status.name);
     final statusSurfaceColor = AppColors.getStatusSurfaceColor(status.name);
 
@@ -312,7 +335,7 @@ class _StatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            status.displayNameAr,
+            _getStatusDisplayName(l10n, status),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: statusColor,
               fontWeight: FontWeight.w500,
@@ -333,14 +356,15 @@ class _SegmentedProgressBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (progress.totalAssignments == 0) {
       return Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
           vertical: AppSpacing.xxs,
         ),
-        decoration: const BoxDecoration(
-          color: AppColors.taskNoAssignmentsSurface,
+        decoration: BoxDecoration(
+          color: context.colors.taskNoAssignmentsSurface,
           borderRadius: AppSpacing.borderRadiusFull,
         ),
         child: Row(
@@ -353,7 +377,7 @@ class _SegmentedProgressBadge extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.xxs),
             Text(
-              'لا تكليفات',
+              l10n.task_noAssignments,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: AppColors.taskNoAssignments,
                 fontSize: 10,
@@ -366,18 +390,19 @@ class _SegmentedProgressBadge extends StatelessWidget {
 
     // Calculate segments
     final completedFlex = progress.completedCount;
+    // pendingCount already excludes overdue from TaskProgress calculation
     final pendingFlex = progress.pendingCount;
-    // For now, overdue is 0 - would need deadline tracking
-    const overdueFlex = 0;
-    final totalFlex = completedFlex + pendingFlex + overdueFlex;
+    // Red segment: overdue + apologized (both are "failed" states)
+    final failedFlex = progress.overdueCount + progress.apologizedCount;
+    final totalFlex = completedFlex + pendingFlex + failedFlex;
 
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxs,
       ),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceVariant,
+      decoration: BoxDecoration(
+        color: context.colors.surfaceVariant,
         borderRadius: AppSpacing.borderRadiusFull,
       ),
       child: Row(
@@ -401,15 +426,15 @@ class _SegmentedProgressBadge extends StatelessWidget {
                       flex: pendingFlex,
                       child: Container(color: AppColors.progressPending),
                     ),
-                  if (overdueFlex > 0)
+                  if (failedFlex > 0)
                     Expanded(
-                      flex: overdueFlex,
+                      flex: failedFlex,
                       child: Container(color: AppColors.progressOverdue),
                     ),
                   // If all zero, show empty
                   if (totalFlex == 0)
                     Expanded(
-                      child: Container(color: AppColors.surfaceDisabled),
+                      child: Container(color: context.colors.surfaceDisabled),
                     ),
                 ],
               ),
@@ -420,7 +445,7 @@ class _SegmentedProgressBadge extends StatelessWidget {
           Text(
             '${progress.completedCount}/${progress.totalAssignments}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               fontWeight: FontWeight.w600,
               fontSize: 11,
             ),

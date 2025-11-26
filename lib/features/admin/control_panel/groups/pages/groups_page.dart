@@ -10,6 +10,7 @@ import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../core/widgets/inputs/ribal_text_field.dart';
 import '../../../../../data/models/group_model.dart';
 import '../../../../../data/models/user_model.dart';
+import '../../../../../l10n/generated/app_localizations.dart';
 import '../../../../auth/bloc/auth_bloc.dart';
 import '../bloc/groups_bloc.dart';
 
@@ -30,9 +31,10 @@ class _GroupsPageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('المجموعات'),
+        title: Text(l10n.group_title),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -72,14 +74,14 @@ class _GroupsPageContent extends StatelessWidget {
             if (state.searchQuery.isNotEmpty) {
               return EmptyState(
                 icon: Icons.search_off,
-                title: 'لا توجد نتائج',
-                message: 'لم يتم العثور على مجموعة تطابق "${state.searchQuery}"',
+                title: l10n.common_no_results,
+                message: l10n.group_noGroupsMatchingSearch(state.searchQuery),
               );
             }
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.group_work_outlined,
-              title: 'لا توجد مجموعات',
-              message: 'قم بإنشاء مجموعات لتنظيم الموظفين',
+              title: l10n.group_noGroups,
+              message: l10n.group_noGroupsSubtitle,
             );
           }
 
@@ -109,12 +111,13 @@ class _GroupsPageContent extends StatelessWidget {
   }
 
   void _showCreateDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
@@ -129,8 +132,8 @@ class _GroupsPageContent extends StatelessWidget {
 
             if (userId.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('خطأ: لم يتم العثور على المستخدم'),
+                SnackBar(
+                  content: Text(l10n.common_errorUserNotFound),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -153,6 +156,7 @@ class _GroupsPageContent extends StatelessWidget {
 class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return TextField(
       onChanged: (value) {
         if (value.isEmpty) {
@@ -162,10 +166,10 @@ class _SearchField extends StatelessWidget {
         }
       },
       decoration: InputDecoration(
-        hintText: 'البحث في المجموعات...',
+        hintText: l10n.group_searchHint,
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: context.colors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -182,16 +186,21 @@ class _GroupCard extends StatelessWidget {
 
   const _GroupCard({required this.group, required this.memberCount});
 
+  String _getMemberCountText(AppLocalizations l10n, int count) {
+    return '$count ${count == 1 ? l10n.common_member : l10n.common_members}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('yyyy/MM/dd', 'ar');
+    final l10n = AppLocalizations.of(context)!;
+    final dateFormat = DateFormat('yyyy/MM/dd');
 
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -211,29 +220,29 @@ class _GroupCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.people_outline,
                       size: 14,
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      '$memberCount ${memberCount == 1 ? 'عضو' : 'أعضاء'}',
+                      _getMemberCountText(l10n, memberCount),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+                            color: context.colors.textSecondary,
                           ),
                     ),
                     const SizedBox(width: AppSpacing.md),
-                    const Icon(
+                    Icon(
                       Icons.calendar_today_outlined,
                       size: 12,
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       dateFormat.format(group.createdAt),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
+                            color: context.colors.textTertiary,
                           ),
                     ),
                   ],
@@ -248,7 +257,7 @@ class _GroupCard extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.person_add_outlined, size: 20),
                 onPressed: () => _showMembersDialog(context, group),
-                tooltip: 'إدارة الأعضاء',
+                tooltip: l10n.group_manageMembers,
                 color: AppColors.success,
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
@@ -257,7 +266,7 @@ class _GroupCard extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 20),
                 onPressed: () => _showEditDialog(context, group),
-                tooltip: 'تعديل',
+                tooltip: l10n.common_edit,
                 color: AppColors.primary,
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
@@ -266,7 +275,7 @@ class _GroupCard extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () => _confirmDelete(context, group, memberCount),
-                tooltip: 'حذف',
+                tooltip: l10n.common_delete,
                 color: AppColors.error,
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
@@ -290,7 +299,7 @@ class _GroupCard extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
@@ -308,7 +317,7 @@ class _GroupCard extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
@@ -335,15 +344,16 @@ class _GroupCard extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context, GroupModel group, int memberCount) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
+        title: Text(l10n.common_confirmDelete),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('هل أنت متأكد من حذف المجموعة "${group.name}"؟'),
+            Text('${l10n.group_deleteConfirm} "${group.name}"?'),
             if (memberCount > 0) ...[
               const SizedBox(height: AppSpacing.sm),
               Container(
@@ -362,7 +372,7 @@ class _GroupCard extends StatelessWidget {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        'سيتم إزالة $memberCount ${memberCount == 1 ? 'عضو' : 'أعضاء'} من هذه المجموعة',
+                        l10n.group_deleteMembers(memberCount),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.warningDark,
                             ),
@@ -377,7 +387,7 @@ class _GroupCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -387,7 +397,7 @@ class _GroupCard extends StatelessWidget {
                   );
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('حذف'),
+            child: Text(l10n.common_delete),
           ),
         ],
       ),
@@ -410,6 +420,7 @@ class _GroupMembersDialogState extends State<_GroupMembersDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocBuilder<GroupsBloc, GroupsState>(
       builder: (context, state) {
         // Filter out admins - only show employees and managers
@@ -452,7 +463,7 @@ class _GroupMembersDialogState extends State<_GroupMembersDialog> {
             children: [
               // Title
               Text(
-                'إدارة أعضاء "${widget.group.name}"',
+                l10n.group_membersOf(widget.group.name),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -465,10 +476,10 @@ class _GroupMembersDialogState extends State<_GroupMembersDialog> {
                   setState(() => _searchQuery = value.toLowerCase().trim());
                 },
                 decoration: InputDecoration(
-                  hintText: 'البحث عن مستخدم...',
+                  hintText: l10n.group_searchUsers,
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
-                  fillColor: AppColors.surfaceVariant,
+                  fillColor: context.colors.surfaceVariant,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                   border: OutlineInputBorder(
@@ -494,7 +505,7 @@ class _GroupMembersDialogState extends State<_GroupMembersDialog> {
                                     children: [
                                       const Icon(Icons.people, size: 18),
                                       const SizedBox(width: 4),
-                                      Text('الأعضاء (${filteredMembers.length})'),
+                                      Text('${l10n.group_showMembers} (${filteredMembers.length})'),
                                     ],
                                   ),
                                 ),
@@ -504,7 +515,7 @@ class _GroupMembersDialogState extends State<_GroupMembersDialog> {
                                     children: [
                                       const Icon(Icons.person_add, size: 18),
                                       const SizedBox(width: 4),
-                                      Text('إضافة (${filteredAvailable.length})'),
+                                      Text('${l10n.common_add} (${filteredAvailable.length})'),
                                     ],
                                   ),
                                 ),
@@ -536,7 +547,7 @@ class _GroupMembersDialogState extends State<_GroupMembersDialog> {
               const SizedBox(height: AppSpacing.md),
               // Close button
               RibalButton(
-                text: 'إغلاق',
+                text: l10n.common_close,
                 variant: RibalButtonVariant.outline,
                 onPressed: () => Navigator.pop(context),
               ),
@@ -552,12 +563,13 @@ class _GroupMembersDialogState extends State<_GroupMembersDialog> {
     List<UserModel> users, {
     required bool isMember,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     if (users.isEmpty) {
       return Center(
         child: Text(
-          isMember ? 'لا يوجد أعضاء في هذه المجموعة' : 'لا يوجد مستخدمين متاحين',
+          isMember ? l10n.group_noMembers : l10n.group_noUsersAvailable,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
               ),
         ),
       );
@@ -590,15 +602,27 @@ class _UserTile extends StatelessWidget {
     required this.groupId,
   });
 
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,
       ),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceVariant,
+      decoration: BoxDecoration(
+        color: context.colors.surfaceVariant,
         borderRadius: AppSpacing.borderRadiusSm,
       ),
       child: Row(
@@ -633,7 +657,7 @@ class _UserTile extends StatelessWidget {
                 Text(
                   user.email,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -649,7 +673,7 @@ class _UserTile extends StatelessWidget {
               borderRadius: AppSpacing.borderRadiusFull,
             ),
             child: Text(
-              user.role.displayNameAr,
+              _getRoleDisplayName(l10n, user.role),
               style: TextStyle(
                 color: AppColors.getRoleColor(user.role.name),
                 fontSize: 10,
@@ -682,7 +706,7 @@ class _UserTile extends StatelessWidget {
                     );
               }
             },
-            tooltip: isMember ? 'إزالة من المجموعة' : 'إضافة إلى المجموعة',
+            tooltip: isMember ? l10n.group_removeFromGroup : l10n.group_addToGroup,
           ),
         ],
       ),
@@ -726,6 +750,7 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<GroupsBloc, GroupsState>(
       listener: (context, state) {
         if (state.successMessage != null && _isSubmitting) {
@@ -750,7 +775,7 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
                 children: [
                   // Title
                   Text(
-                    _isEditing ? 'تعديل المجموعة' : 'إنشاء مجموعة جديدة',
+                    _isEditing ? l10n.group_edit : l10n.group_createNew,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -760,16 +785,16 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
                   // Name field
                   RibalTextField(
                     controller: _nameController,
-                    label: 'اسم المجموعة',
-                    hint: 'أدخل اسم المجموعة',
+                    label: l10n.group_name,
+                    hint: l10n.group_nameHint,
                     prefixIcon: Icons.group_work_outlined,
                     textInputAction: TextInputAction.done,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'اسم المجموعة مطلوب';
+                        return l10n.group_nameRequired;
                       }
                       if (value.length < 2) {
-                        return 'اسم المجموعة قصير جداً';
+                        return l10n.group_nameTooShort;
                       }
                       return null;
                     },
@@ -778,17 +803,17 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
                   // Preview
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: const BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                    decoration: BoxDecoration(
+                      color: context.colors.surfaceVariant,
                       borderRadius: AppSpacing.borderRadiusMd,
                     ),
                     child: Row(
                       children: [
                         Text(
-                          'معاينة:',
+                          l10n.group_preview,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
+                                    color: context.colors.textSecondary,
                                   ),
                         ),
                         const SizedBox(width: AppSpacing.md),
@@ -813,7 +838,7 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
                               const SizedBox(width: AppSpacing.xs),
                               Text(
                                 _nameController.text.isEmpty
-                                    ? 'اسم المجموعة'
+                                    ? l10n.group_name
                                     : _nameController.text,
                                 style: Theme.of(context)
                                     .textTheme
@@ -832,14 +857,14 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
                   const SizedBox(height: AppSpacing.lg),
                   // Submit button
                   RibalButton(
-                    text: _isEditing ? 'حفظ التعديلات' : 'إنشاء المجموعة',
+                    text: _isEditing ? l10n.common_saveChanges : l10n.group_create,
                     isLoading: _isSubmitting,
                     onPressed: _submit,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   // Cancel button
                   RibalButton(
-                    text: 'إلغاء',
+                    text: l10n.common_cancel,
                     variant: RibalButtonVariant.outline,
                     onPressed: () => Navigator.pop(context),
                   ),

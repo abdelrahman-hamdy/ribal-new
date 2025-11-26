@@ -11,6 +11,7 @@ import '../../../../data/models/settings_model.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../../data/repositories/label_repository.dart';
 import '../../../../data/repositories/settings_repository.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../tasks/bloc/tasks_bloc.dart';
 
 class ArchivePage extends StatelessWidget {
@@ -30,9 +31,10 @@ class _ArchivePageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الأرشيف'),
+        title: Text(l10n.archive_title),
       ),
       body: BlocConsumer<TasksBloc, TasksState>(
         listener: (context, state) {
@@ -59,10 +61,10 @@ class _ArchivePageContent extends StatelessWidget {
           }
 
           if (state.archivedTasks.isEmpty) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.archive_outlined,
-              title: 'الأرشيف فارغ',
-              message: 'لا توجد مهام مؤرشفة',
+              title: l10n.archive_empty,
+              message: l10n.archive_noArchived,
             );
           }
 
@@ -140,11 +142,12 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
   }
 
   void _showPublishOptions(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isBeforeDeadline = _settings.isBeforeDeadline;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
@@ -162,7 +165,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: context.colors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -170,7 +173,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               const SizedBox(height: AppSpacing.lg),
               // Title
               Text(
-                'نشر المهمة',
+                l10n.archive_publishTask,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -180,7 +183,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               Text(
                 widget.task.title,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -190,10 +193,10 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               // Publish for today only button
               _PublishOptionButton(
                 icon: Icons.today,
-                title: 'نشر لليوم فقط',
+                title: l10n.archive_publishForToday,
                 subtitle: isBeforeDeadline
-                    ? 'سيتم نشر المهمة للموظفين اليوم فقط'
-                    : 'انتهى الموعد النهائي لنشر مهام اليوم (${_settings.taskDeadline})',
+                    ? l10n.archive_publishForTodaySubtitle
+                    : l10n.archive_deadlineExpired(_settings.taskDeadline),
                 enabled: isBeforeDeadline,
                 onTap: isBeforeDeadline
                     ? () {
@@ -206,8 +209,8 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               // Publish as recurring button
               _PublishOptionButton(
                 icon: Icons.repeat,
-                title: 'نشر كمهمة متكررة',
-                subtitle: 'سيتم نشر المهمة يومياً للموظفين',
+                title: l10n.archive_publishAsRecurring,
+                subtitle: l10n.archive_publishAsRecurringSubtitle,
                 enabled: true,
                 onTap: () {
                   Navigator.pop(bottomSheetContext);
@@ -218,7 +221,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               // Cancel button
               TextButton(
                 onPressed: () => Navigator.pop(bottomSheetContext),
-                child: const Text('إلغاء'),
+                child: Text(l10n.common_cancel),
               ),
             ],
           ),
@@ -228,17 +231,16 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
   }
 
   void _confirmPublishForToday(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('نشر لليوم فقط'),
-        content: const Text(
-          'سيتم نشر هذه المهمة للموظفين لليوم فقط ولن تتكرر في الأيام التالية.',
-        ),
+        title: Text(l10n.archive_publishConfirmTitle),
+        content: Text(l10n.archive_publishConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -248,7 +250,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               );
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-            child: const Text('نشر'),
+            child: Text(l10n.common_publish),
           ),
         ],
       ),
@@ -256,17 +258,16 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
   }
 
   void _confirmPublishAsRecurring(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('نشر كمهمة متكررة'),
-        content: const Text(
-          'سيتم نشر هذه المهمة يومياً للموظفين. يمكنك إيقافها لاحقاً من صفحة تفاصيل المهمة.',
-        ),
+        title: Text(l10n.archive_publishRecurringConfirmTitle),
+        content: Text(l10n.archive_publishRecurringConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -276,7 +277,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               );
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-            child: const Text('نشر'),
+            child: Text(l10n.common_publish),
           ),
         ],
       ),
@@ -285,12 +286,14 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,7 +321,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
             Text(
               widget.task.description,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -334,8 +337,8 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
                   horizontal: AppSpacing.sm,
                   vertical: AppSpacing.xxs,
                 ),
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceVariant,
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceVariant,
                   borderRadius: AppSpacing.borderRadiusFull,
                 ),
                 child: Row(
@@ -344,13 +347,13 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
                     Icon(
                       widget.task.isRecurring ? Icons.repeat : Icons.event,
                       size: 14,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                     const SizedBox(width: AppSpacing.xxs),
                     Text(
-                      widget.task.isRecurring ? 'كانت متكررة' : 'كانت لمرة واحدة',
+                      widget.task.isRecurring ? l10n.archive_wasRecurring : l10n.archive_wasOneTime,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -358,16 +361,16 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
               ),
               const SizedBox(width: AppSpacing.sm),
               // Archive date
-              const Icon(
+              Icon(
                 Icons.archive_outlined,
                 size: 14,
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
               const SizedBox(width: AppSpacing.xxs),
               Text(
-                DateFormat('d MMM yyyy', 'ar').format(widget.task.updatedAt),
+                DateFormat('d MMM yyyy', locale).format(widget.task.updatedAt),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: context.colors.textTertiary,
                 ),
               ),
             ],
@@ -379,7 +382,7 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
             child: ElevatedButton.icon(
               onPressed: () => _showPublishOptions(context),
               icon: const Icon(Icons.publish, size: 18),
-              label: const Text('نشر المهمة'),
+              label: Text(l10n.archive_publishTask),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -410,8 +413,9 @@ class _PublishOptionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Material(
-      color: enabled ? AppColors.surface : AppColors.surfaceDisabled,
+      color: enabled ? context.colors.surface : context.colors.surfaceVariant,
       borderRadius: AppSpacing.borderRadiusMd,
       child: InkWell(
         onTap: enabled ? onTap : null,
@@ -421,7 +425,7 @@ class _PublishOptionButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: AppSpacing.borderRadiusMd,
             border: Border.all(
-              color: enabled ? AppColors.border : AppColors.border.withValues(alpha: 0.5),
+              color: enabled ? context.colors.border : context.colors.border.withValues(alpha: 0.5),
             ),
           ),
           child: Row(
@@ -432,12 +436,12 @@ class _PublishOptionButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: enabled
                       ? AppColors.primary.withValues(alpha: 0.1)
-                      : AppColors.surfaceVariant,
+                      : context.colors.surfaceVariant,
                   borderRadius: AppSpacing.borderRadiusSm,
                 ),
                 child: Icon(
                   icon,
-                  color: enabled ? AppColors.primary : AppColors.textTertiary,
+                  color: enabled ? AppColors.primary : context.colors.textTertiary,
                   size: 24,
                 ),
               ),
@@ -450,23 +454,24 @@ class _PublishOptionButton extends StatelessWidget {
                       title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: enabled ? AppColors.textPrimary : AppColors.textTertiary,
+                        color: enabled ? context.colors.textPrimary : context.colors.textTertiary,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: enabled ? AppColors.textSecondary : AppColors.textTertiary,
+                        color: enabled ? context.colors.textSecondary : context.colors.textTertiary,
                       ),
                     ),
                   ],
                 ),
               ),
               if (enabled)
-                const Icon(
-                  Icons.chevron_left,
-                  color: AppColors.textTertiary,
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: context.colors.textTertiary,
+                  size: 16,
                 ),
               if (!enabled)
                 Container(
@@ -479,7 +484,7 @@ class _PublishOptionButton extends StatelessWidget {
                     borderRadius: AppSpacing.borderRadiusFull,
                   ),
                   child: Text(
-                    'انتهى الوقت',
+                    l10n.archive_timeExpired,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: AppColors.error,
                       fontWeight: FontWeight.w500,

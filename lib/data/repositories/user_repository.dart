@@ -1,22 +1,150 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/constants/firebase_constants.dart';
+import '../../core/services/hive_cache_service.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
 
-/// User repository for CRUD operations
+/// User repository for CRUD operations with V2 caching
+/// Strategy: Firebase cache + Hive TTL metadata
 @lazySingleton
 class UserRepository {
   final FirestoreService _firestoreService;
+  final HiveCacheService _cacheService;
 
-  UserRepository(this._firestoreService);
+  UserRepository(this._firestoreService, this._cacheService);
 
-  /// Get user by ID
+  /// Get user by ID (V2: Firebase cache + Hive TTL)
   Future<UserModel?> getUserById(String userId) async {
-    final doc = await _firestoreService.userDoc(userId).get();
+    final cacheKey = 'user_${userId}_timestamp';
+
+    // Check if Firebase cache is fresh
+    final isFresh = await _cacheService.isCacheFresh(
+      boxName: HiveCacheService.boxUsers,
+      key: cacheKey,
+      ttl: HiveCacheService.ttlMedium,
+    );
+
+    if (isFresh) {
+      // Use Firebase CACHE (instant)
+      try {
+        final doc = await _firestoreService.userDoc(userId)
+            .get(const GetOptions(source: Source.cache));
+
+        if (!doc.exists) return null;
+        return UserModel.fromFirestore(doc);
+      } catch (e) {
+        debugPrint('[UserRepository] Firebase cache read failed for user $userId: $e');
+      }
+    }
+
+    // Fetch from server
+    final doc = await _firestoreService.userDoc(userId)
+        .get(const GetOptions(source: Source.server));
+
     if (!doc.exists) return null;
-    return UserModel.fromFirestore(doc);
+
+    final user = UserModel.fromFirestore(doc);
+
+    // Mark cache as fresh
+    await _cacheService.put(
+      boxName: HiveCacheService.boxUsers,
+      key: cacheKey,
+      value: {'cached': true},
+    );
+
+    return user;
+  }
+
+  /// Batch get users by IDs (optimized for multiple users) with V2 caching
+  /// Uses individual cache checks for maximum cache hit rate
+  Future<Map<String, UserModel>> getUsersByIds(List<String> userIds) async {
+    if (userIds.isEmpty) return {};
+
+    final overallStart = DateTime.now();
+    debugPrint('[UserRepository] 👥 getUsersByIds() V2 started - ${userIds.length} users');
+
+    final users = <String, UserModel>{};
+    final cachedUserIds = <String>[];
+    final staleUserIds = <String>[];
+
+    // Check which users have fresh individual cache timestamps
+    for (final userId in userIds) {
+      final cacheKey = 'user_${userId}_timestamp';
+      final isFresh = await _cacheService.isCacheFresh(
+        boxName: HiveCacheService.boxUsers,
+        key: cacheKey,
+        ttl: HiveCacheService.ttlMedium,
+      );
+
+      if (isFresh) {
+        cachedUserIds.add(userId);
+      } else {
+        staleUserIds.add(userId);
+      }
+    }
+
+    debugPrint('[UserRepository] Cache status: ${cachedUserIds.length} fresh, ${staleUserIds.length} stale');
+
+    // Read cached users from Firebase cache (instant!)
+    if (cachedUserIds.isNotEmpty) {
+      final cacheReadStart = DateTime.now();
+      debugPrint('[UserRepository] 📖 Reading ${cachedUserIds.length} users from Firebase CACHE');
+
+      try {
+        for (var i = 0; i < cachedUserIds.length; i += 10) {
+          final batch = cachedUserIds.skip(i).take(10).toList();
+          final snapshot = await _firestoreService.usersCollection
+              .where(FieldPath.documentId, whereIn: batch)
+              .get(const GetOptions(source: Source.cache)); // 🔥 CACHE-ONLY
+
+          for (final doc in snapshot.docs) {
+            users[doc.id] = UserModel.fromFirestore(doc);
+          }
+        }
+
+        final duration = DateTime.now().difference(cacheReadStart);
+        debugPrint('[UserRepository] ✅ Loaded ${users.length} users from Firebase CACHE in ${duration.inMilliseconds}ms');
+      } catch (e) {
+        debugPrint('[UserRepository] ⚠️ Firebase cache read failed: $e');
+        // Add failed IDs back to stale list
+        staleUserIds.addAll(cachedUserIds);
+      }
+    }
+
+    // Fetch stale users from server
+    if (staleUserIds.isNotEmpty) {
+      final serverFetchStart = DateTime.now();
+      debugPrint('[UserRepository] 🌐 Fetching ${staleUserIds.length} users from Firebase SERVER');
+
+      for (var i = 0; i < staleUserIds.length; i += 10) {
+        final batch = staleUserIds.skip(i).take(10).toList();
+        final snapshot = await _firestoreService.usersCollection
+            .where(FieldPath.documentId, whereIn: batch)
+            .get(const GetOptions(source: Source.server)); // 🌐 SERVER FETCH
+
+        for (final doc in snapshot.docs) {
+          users[doc.id] = UserModel.fromFirestore(doc);
+
+          // Mark individual user as fresh
+          await _cacheService.put(
+            boxName: HiveCacheService.boxUsers,
+            key: 'user_${doc.id}_timestamp',
+            value: {'cached': true},
+          );
+        }
+      }
+
+      final duration = DateTime.now().difference(serverFetchStart);
+      debugPrint('[UserRepository] ✅ Fetched ${staleUserIds.length} users from SERVER in ${duration.inMilliseconds}ms');
+    }
+
+    final totalDuration = DateTime.now().difference(overallStart);
+    debugPrint('[UserRepository] 🎯 Total: Loaded ${users.length} users in ${totalDuration.inMilliseconds}ms (${cachedUserIds.length} cached, ${staleUserIds.length} fetched)');
+
+    return users;
   }
 
   /// Stream user by ID
@@ -119,6 +247,7 @@ class UserRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
+    await _invalidateUserCaches();
   }
 
   /// Update user role (simple update without handling scenarios)
@@ -138,6 +267,7 @@ class UserRepository {
       _firestoreService.userDoc(userId),
       updates,
     );
+    await _invalidateUserCaches();
   }
 
   /// Convert user role with proper handling of all scenarios
@@ -193,6 +323,7 @@ class UserRepository {
       _firestoreService.userDoc(userId),
       updates,
     );
+    await _invalidateUserCaches();
   }
 
   /// Update user group
@@ -204,6 +335,7 @@ class UserRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
+    await _invalidateUserCaches();
   }
 
   /// Update manager permissions
@@ -220,6 +352,7 @@ class UserRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
+    await _invalidateUserCaches();
   }
 
   /// Count users by group
@@ -229,5 +362,21 @@ class UserRepository {
         .count()
         .get();
     return snapshot.count ?? 0;
+  }
+
+  // ===========================================
+  // CACHE INVALIDATION
+  // ===========================================
+
+  /// Invalidate user caches (only timestamps, data stays in Firebase cache)
+  Future<void> _invalidateUserCaches() async {
+    debugPrint('[UserRepository] 🗑️  Invalidating user caches...');
+
+    // Clear all user batch cache keys
+    // Since we can't enumerate all possible batch combinations,
+    // we clear the entire users box (only timestamps, data stays in Firebase)
+    await _cacheService.clearBox(HiveCacheService.boxUsers);
+
+    debugPrint('[UserRepository] ✅ User caches invalidated');
   }
 }

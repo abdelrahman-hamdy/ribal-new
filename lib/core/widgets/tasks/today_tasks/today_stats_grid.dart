@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../theme/app_typography.dart';
+import '../../animated/animated_count.dart';
 
 /// A grid of 6 boxes showing today's task statistics
 /// 5 info boxes + 1 button box for viewing full stats
 ///
 /// Order: Total Tasks, Total Assignments, Completed, Pending, Overdue, Full Stats Button
 class TodayStatsGrid extends StatelessWidget {
+  final bool isLoading;
   final int totalTasksCount;
   final int totalAssignmentsCount;
   final int completedTasksCount;
@@ -18,6 +21,7 @@ class TodayStatsGrid extends StatelessWidget {
 
   const TodayStatsGrid({
     super.key,
+    this.isLoading = false,
     required this.totalTasksCount,
     required this.totalAssignmentsCount,
     required this.completedTasksCount,
@@ -28,6 +32,7 @@ class TodayStatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         // Row 1: Total Tasks, Total Assignments, Completed
@@ -35,25 +40,28 @@ class TodayStatsGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _StatBox(
-                title: 'المهام',
-                value: '$totalTasksCount',
+                title: l10n.statistics_totalTasks,
+                count: totalTasksCount,
                 color: AppColors.primary,
+                isLoading: isLoading,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _StatBox(
-                title: 'التكليفات',
-                value: '$totalAssignmentsCount',
+                title: l10n.assignment_myAssignments,
+                count: totalAssignmentsCount,
                 color: AppColors.roleAdmin, // Purple
+                isLoading: isLoading,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _StatBox(
-                title: 'مكتملة',
-                value: '$completedTasksCount',
+                title: l10n.statistics_completed,
+                count: completedTasksCount,
                 color: AppColors.progressDone,
+                isLoading: isLoading,
               ),
             ),
           ],
@@ -64,17 +72,19 @@ class TodayStatsGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _StatBox(
-                title: 'قيد الانتظار',
-                value: '$pendingCount',
+                title: l10n.statistics_inProgress,
+                count: pendingCount,
                 color: AppColors.progressPending, // Orange
+                isLoading: isLoading,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _StatBox(
-                title: 'متأخرة',
-                value: '$overdueCount',
+                title: l10n.task_overdue,
+                count: overdueCount,
                 color: AppColors.progressOverdue,
+                isLoading: isLoading,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -88,16 +98,18 @@ class TodayStatsGrid extends StatelessWidget {
   }
 }
 
-/// Individual stat box with title and value (centered vertically)
+/// Individual stat box with title and animated count value (centered vertically)
 class _StatBox extends StatelessWidget {
   final String title;
-  final String value;
+  final int count;
   final Color color;
+  final bool isLoading;
 
   const _StatBox({
     required this.title,
-    required this.value,
+    required this.count,
     required this.color,
+    this.isLoading = false,
   });
 
   @override
@@ -108,9 +120,9 @@ class _StatBox extends StatelessWidget {
         vertical: AppSpacing.smd,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -119,13 +131,14 @@ class _StatBox extends StatelessWidget {
           Text(
             title,
             style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: AppSpacing.xxs),
-          Text(
-            value,
-            style: AppTypography.headlineMedium.copyWith(
+          AnimatedStatCount(
+            isLoading: isLoading,
+            count: count,
+            style: AppTypography.displaySmall.copyWith(
               color: color,
               fontWeight: FontWeight.bold,
             ),
@@ -144,6 +157,7 @@ class _ViewStatsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -152,7 +166,7 @@ class _ViewStatsButton extends StatelessWidget {
           vertical: AppSpacing.smd,
         ),
         decoration: BoxDecoration(
-          color: AppColors.primarySurface,
+          color: context.colors.primarySurface,
           borderRadius: AppSpacing.borderRadiusMd,
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         ),
@@ -171,7 +185,7 @@ class _ViewStatsButton extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    'الإحصائيات',
+                    l10n.statistics_title,
                     style: AppTypography.labelSmall.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -182,9 +196,9 @@ class _ViewStatsButton extends StatelessWidget {
             ),
             // Caret icon on the end (appears on left in RTL)
             const Icon(
-              Icons.chevron_right,
+              Icons.arrow_forward_ios,
               color: AppColors.primary,
-              size: 20,
+              size: 16,
             ),
           ],
         ),

@@ -14,6 +14,7 @@ import '../../../../data/models/task_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/group_repository.dart';
 import '../../../../data/repositories/label_repository.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../admin/tasks/bloc/tasks_bloc.dart';
 import '../../../auth/bloc/auth_bloc.dart';
 
@@ -132,6 +133,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocProvider(
       create: (context) => getIt<TasksBloc>(),
       child: BlocConsumer<TasksBloc, TasksState>(
@@ -165,7 +167,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
 
               return Scaffold(
                 appBar: AppBar(
-                  title: const Text('إنشاء مهمة'),
+                  title: Text(l10n.task_create),
                 ),
                 body: canCreateTasks
                     ? _buildTaskForm(context, state)
@@ -188,6 +190,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
   }
 
   Widget _buildNoPermissionState(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: AppSpacing.pagePadding,
@@ -208,7 +211,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(
-              'لا يمكنك إنشاء مهام',
+              l10n.manager_cannotCreateTasks,
               style: AppTypography.headlineSmall.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -216,7 +219,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'لم يتم تعيين مجموعات لك بعد.\nيرجى التواصل مع مدير النظام لتعيين مجموعات يمكنك إدارتها.',
+              l10n.manager_noGroupsAssigned,
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -240,7 +243,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
-                      'يمكنك إنشاء مهام فقط عندما يتم تعيين مجموعة واحدة على الأقل لك، أو عند منحك صلاحية التعيين لجميع الموظفين.',
+                      l10n.manager_canCreateOnlyWithGroups,
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.info,
                       ),
@@ -253,7 +256,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
             OutlinedButton.icon(
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.arrow_back),
-              label: const Text('العودة'),
+              label: Text(l10n.common_back),
             ),
           ],
         ),
@@ -262,6 +265,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
   }
 
   Widget _buildTaskForm(BuildContext context, TasksState state) {
+    final l10n = AppLocalizations.of(context)!;
     return Form(
       key: _formKey,
       child: ListView(
@@ -303,7 +307,7 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
           ),
           const SizedBox(height: AppSpacing.xl),
           RibalButton(
-            text: 'إنشاء المهمة',
+            text: l10n.task_create,
             onPressed: state.isLoading ? null : () => _handleCreateTask(context),
             isLoading: state.isLoading,
           ),
@@ -313,13 +317,14 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
   }
 
   void _handleCreateTask(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_formKey.currentState?.validate() ?? false) {
       // Validate group selection if groups is chosen
       if (_assigneeSelection == AssigneeSelection.groups &&
           _selectedGroupIds.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('يرجى اختيار مجموعة واحدة على الأقل'),
+          SnackBar(
+            content: Text(l10n.task_selectAtLeastOneGroup),
             backgroundColor: Colors.red,
           ),
         );
@@ -331,8 +336,8 @@ class _ManagerTaskCreatePageState extends State<ManagerTaskCreatePage> {
 
       if (userId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('خطأ في الحصول على بيانات المستخدم'),
+          SnackBar(
+            content: Text(l10n.common_errorUserNotFound),
             backgroundColor: Colors.red,
           ),
         );

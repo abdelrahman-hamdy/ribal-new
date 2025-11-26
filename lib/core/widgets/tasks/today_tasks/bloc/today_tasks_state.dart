@@ -6,16 +6,22 @@ class TodayTasksState extends Equatable {
   final bool isLoading;
   final String? errorMessage;
 
+  /// Whether the initial load has completed at least once
+  /// Used to differentiate between "loading for the first time" and "empty after load"
+  final bool hasLoadedOnce;
+
   const TodayTasksState({
     required this.tasks,
     required this.isLoading,
     this.errorMessage,
+    this.hasLoadedOnce = false,
   });
 
   factory TodayTasksState.initial() {
     return const TodayTasksState(
       tasks: [],
-      isLoading: false,
+      isLoading: true, // Start in loading state
+      hasLoadedOnce: false,
     );
   }
 
@@ -66,14 +72,16 @@ class TodayTasksState extends Equatable {
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
+    bool? hasLoadedOnce,
   }) {
     return TodayTasksState(
       tasks: tasks ?? this.tasks,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      hasLoadedOnce: hasLoadedOnce ?? this.hasLoadedOnce,
     );
   }
 
   @override
-  List<Object?> get props => [tasks, isLoading, errorMessage];
+  List<Object?> get props => [tasks, isLoading, errorMessage, hasLoadedOnce];
 }

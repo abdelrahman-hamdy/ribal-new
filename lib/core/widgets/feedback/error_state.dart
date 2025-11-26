@@ -45,7 +45,7 @@ class ErrorState extends StatelessWidget {
             Text(
               'حدث خطأ',
               style: AppTypography.headlineMedium.copyWith(
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -53,7 +53,7 @@ class ErrorState extends StatelessWidget {
             Text(
               message,
               style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),

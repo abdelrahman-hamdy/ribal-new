@@ -53,6 +53,11 @@ dependencies:
   rxdart: ^0.28.0
   collection: ^1.18.0
 
+  # Local Storage / Caching
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.5
+
   # Icons
   iconsax: ^0.0.8
   timeago: ^3.7.1
@@ -71,6 +76,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   assets:
     - assets/images/

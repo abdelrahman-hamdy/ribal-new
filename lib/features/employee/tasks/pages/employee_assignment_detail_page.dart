@@ -8,11 +8,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/assignment/assignment.dart';
 import '../../../../core/widgets/feedback/error_state.dart';
 import '../../../../core/widgets/feedback/loading_state.dart';
+import '../../../../core/widgets/notes/notes.dart';
 import '../../../../data/models/assignment_model.dart';
+import '../../../../data/models/user_model.dart';
 import '../../../../data/services/storage_service.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../auth/bloc/auth_bloc.dart';
 import '../bloc/assignment_detail_bloc.dart';
 
@@ -36,9 +40,10 @@ class _AssignmentDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تفاصيل المهمة'),
+        title: Text(l10n.task_details),
       ),
       body: BlocConsumer<AssignmentDetailBloc, AssignmentDetailState>(
         listenWhen: (previous, current) =>
@@ -64,39 +69,68 @@ class _AssignmentDetailContent extends StatelessWidget {
         },
         builder: (context, state) {
           if (state.isLoading && state.assignment == null) {
-            return const LoadingState(message: 'جاري تحميل المهمة...');
+            return LoadingState(message: l10n.assignment_loading);
           }
 
           if (state.assignment == null || state.task == null) {
-            return const ErrorState(
+            return ErrorState(
               icon: Icons.error_outline,
-              message: 'فشل في تحميل المهمة',
+              message: l10n.error_loadTask,
             );
           }
 
-          return SingleChildScrollView(
-            padding: AppSpacing.pagePadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Task info card (using shared widget)
-                AssignmentInfoCard(
-                  assignment: state.assignment!,
-                  task: state.task!,
-                  labels: state.labels,
-                  creator: state.creator,
-                  deadline: state.taskDeadline,
-                  showAttachmentViewRow: false,
-                ),
-                const SizedBox(height: AppSpacing.lg),
+          return BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, authState) {
+              final currentUser =
+                  authState is AuthAuthenticated ? authState.user : null;
 
-                // Action buttons
-                _ActionButtons(
-                  state: state,
-                  assignmentId: state.assignment!.id,
+              return SingleChildScrollView(
+                padding: AppSpacing.pagePadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Task info card (using shared widget)
+                    AssignmentInfoCard(
+                      assignment: state.assignment!,
+                      task: state.task!,
+                      labels: state.labels,
+                      creator: state.creator,
+                      deadline: state.taskDeadline,
+                      showAttachmentViewRow: false,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Action buttons
+                    _ActionButtons(
+                      state: state,
+                      assignmentId: state.assignment!.id,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // Notes section
+                    if (currentUser != null) ...[
+                      Text(
+                        l10n.notes_title,
+                        style: AppTypography.titleMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      NotesSection(
+                        assignmentId: state.assignment!.id,
+                        taskId: state.task!.id,
+                        currentUserId: currentUser.id,
+                        currentUserName: currentUser.fullName,
+                        currentUserRole: currentUser.role,
+                        height: 350,
+                        recipientId: state.task!.createdBy,
+                        taskTitle: state.task!.title,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -136,6 +170,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
   final _storageService = getIt<StorageService>();
 
   Future<void> _pickFile() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final source = await showModalBottomSheet<ImageSource>(
         context: context,
@@ -144,12 +179,12 @@ class _ActionButtonsState extends State<_ActionButtons> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library),
-                title: const Text('اختر من المعرض'),
+                title: Text(l10n.common_pickFromGallery),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt),
-                title: const Text('التقط صورة'),
+                title: Text(l10n.common_takePhoto),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
             ],
@@ -175,13 +210,14 @@ class _ActionButtonsState extends State<_ActionButtons> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'فشل في اختيار الملف';
+        _errorMessage = l10n.error_filePick;
       });
     }
   }
 
   Future<void> _uploadFile() async {
     if (_selectedFile == null) return;
+    final l10n = AppLocalizations.of(context)!;
 
     setState(() {
       _isUploading = true;
@@ -207,7 +243,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
     } catch (e) {
       setState(() {
         _isUploading = false;
-        _errorMessage = 'فشل في رفع الملف. حاول مرة أخرى.';
+        _errorMessage = l10n.assignment_fileUploadError;
       });
     }
   }
@@ -223,6 +259,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final assignment = widget.state.assignment!;
     final status = assignment.status;
 
@@ -239,13 +276,13 @@ class _ActionButtonsState extends State<_ActionButtons> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.check_circle, color: AppColors.success, size: 20),
-                  SizedBox(width: AppSpacing.sm),
+                  const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                  const SizedBox(width: AppSpacing.sm),
                   Text(
-                    'تم تسليم المهمة بنجاح',
-                    style: TextStyle(
+                    l10n.assignment_submittedSuccess,
+                    style: const TextStyle(
                       color: AppColors.success,
                       fontWeight: FontWeight.w600,
                     ),
@@ -263,8 +300,8 @@ class _ActionButtonsState extends State<_ActionButtons> {
                     );
                     if (!launched && context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('لم يتمكن من فتح الملف'),
+                        SnackBar(
+                          content: Text(l10n.error_fileOpen),
                           backgroundColor: AppColors.error,
                         ),
                       );
@@ -272,8 +309,8 @@ class _ActionButtonsState extends State<_ActionButtons> {
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('خطأ في فتح الملف'),
+                        SnackBar(
+                          content: Text(l10n.error_fileOpenError),
                           backgroundColor: AppColors.error,
                         ),
                       );
@@ -281,7 +318,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
                   }
                 },
                 icon: const Icon(Icons.attach_file, size: 18),
-                label: const Text('عرض المرفق المُسلّم'),
+                label: Text(l10n.assignment_viewAttachment),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                 ),
@@ -312,7 +349,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.refresh, size: 20),
-          label: const Text('إعادة تفعيل'),
+          label: Text(l10n.assignment_reactivate),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primary,
             side: const BorderSide(color: AppColors.primary),
@@ -348,7 +385,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
                         _isUploading ||
                         (attachmentRequired && _uploadedAttachmentUrl == null)
                     ? null
-                    : () => _submitTask(context, userId, attachmentRequired),
+                    : () => _submitTask(context, userId, attachmentRequired, l10n),
                 icon: widget.state.isActionLoading
                     ? const SizedBox(
                         width: 20,
@@ -360,8 +397,8 @@ class _ActionButtonsState extends State<_ActionButtons> {
                       )
                     : const Icon(Icons.check, size: 20),
                 label: Text(attachmentRequired && _uploadedAttachmentUrl == null
-                    ? 'ارفع الملف أولاً'
-                    : 'تسليم المهمة'),
+                    ? l10n.assignment_uploadFileFirst
+                    : l10n.assignment_submitTask),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
@@ -379,9 +416,21 @@ class _ActionButtonsState extends State<_ActionButtons> {
               child: OutlinedButton.icon(
                 onPressed: widget.state.isActionLoading
                     ? null
-                    : () => _showApologizeDialog(context, widget.assignmentId),
+                    : () {
+                        final authState = context.read<AuthBloc>().state;
+                        if (authState is AuthAuthenticated) {
+                          _showApologizeDialog(
+                            context,
+                            widget.assignmentId,
+                            authState.user.id,
+                            authState.user.fullName,
+                            authState.user.role,
+                            l10n,
+                          );
+                        }
+                      },
                 icon: const Icon(Icons.close, size: 20),
-                label: const Text('الاعتذار عن المهمة'),
+                label: Text(l10n.assignment_apologize),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error),
@@ -396,6 +445,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
   }
 
   Widget _buildAttachmentUploadSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -406,14 +456,14 @@ class _ActionButtonsState extends State<_ActionButtons> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.upload_file, color: AppColors.warning, size: 20),
-              SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.upload_file, color: AppColors.warning, size: 20),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'هذه المهمة تتطلب إرفاق ملف',
-                  style: TextStyle(
+                  l10n.assignment_attachmentRequiredMessage,
+                  style: const TextStyle(
                     color: AppColors.warning,
                     fontWeight: FontWeight.w600,
                   ),
@@ -422,9 +472,9 @@ class _ActionButtonsState extends State<_ActionButtons> {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Text(
-            'يرجى رفع صورة أو ملف قبل تسليم المهمة',
-            style: TextStyle(
+          Text(
+            l10n.assignment_attachmentRequiredHint,
+            style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 13,
             ),
@@ -446,7 +496,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      _fileName ?? 'تم رفع الملف بنجاح',
+                      _fileName ?? l10n.assignment_fileUploadedSuccess,
                       style: const TextStyle(fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -467,7 +517,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
                 LinearProgressIndicator(value: _uploadProgress),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'جاري الرفع... ${(_uploadProgress * 100).toInt()}%',
+                  '${l10n.common_uploading} ${(_uploadProgress * 100).toInt()}%',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -479,7 +529,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
             OutlinedButton.icon(
               onPressed: _pickFile,
               icon: const Icon(Icons.attach_file),
-              label: const Text('اختر ملف'),
+              label: Text(l10n.common_selectFile),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.warning,
                 side: const BorderSide(color: AppColors.warning),
@@ -499,7 +549,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
     );
   }
 
-  void _submitTask(BuildContext context, String userId, bool attachmentRequired) {
+  void _submitTask(BuildContext context, String userId, bool attachmentRequired, AppLocalizations l10n) {
     if (attachmentRequired) {
       context.read<AssignmentDetailBloc>().add(
             AssignmentDetailMarkCompletedRequested(
@@ -512,12 +562,12 @@ class _ActionButtonsState extends State<_ActionButtons> {
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('تأكيد التسليم'),
-          content: const Text('هل أنت متأكد من تسليم هذه المهمة؟'),
+          title: Text(l10n.assignment_submitConfirmTitle),
+          content: Text(l10n.assignment_submitConfirmMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('إلغاء'),
+              child: Text(l10n.common_cancel),
             ),
             FilledButton(
               onPressed: () {
@@ -532,7 +582,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.success,
               ),
-              child: const Text('تسليم'),
+              child: Text(l10n.assignment_submit),
             ),
           ],
         ),
@@ -540,24 +590,31 @@ class _ActionButtonsState extends State<_ActionButtons> {
     }
   }
 
-  void _showApologizeDialog(BuildContext context, String assignmentId) {
+  void _showApologizeDialog(
+    BuildContext context,
+    String assignmentId,
+    String userId,
+    String userName,
+    UserRole userRole,
+    AppLocalizations l10n,
+  ) {
     final messageController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('الاعتذار عن المهمة'),
+        title: Text(l10n.assignment_apologize),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('يرجى إدخال سبب الاعتذار (اختياري):'),
+            Text(l10n.assignment_apologizeMessage),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: messageController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'سبب الاعتذار...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: l10n.assignment_apologizeReasonHint,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -565,7 +622,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -576,13 +633,16 @@ class _ActionButtonsState extends State<_ActionButtons> {
                       message: messageController.text.isNotEmpty
                           ? messageController.text
                           : null,
+                      senderId: userId,
+                      senderName: userName,
+                      senderRole: userRole,
                     ),
                   );
             },
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('اعتذار'),
+            child: Text(l10n.assignment_apologizeConfirm),
           ),
         ],
       ),

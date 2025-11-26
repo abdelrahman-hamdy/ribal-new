@@ -10,6 +10,7 @@ import '../../../../../core/widgets/buttons/ribal_button.dart';
 import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../data/models/invitation_model.dart';
 import '../../../../../data/models/user_model.dart';
+import '../../../../../l10n/generated/app_localizations.dart';
 import '../../../../auth/bloc/auth_bloc.dart';
 import '../bloc/invitations_bloc.dart';
 
@@ -30,9 +31,10 @@ class _InvitationsPageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('أكواد الدعوة'),
+        title: Text(l10n.invitation_title),
       ),
       body: BlocConsumer<InvitationsBloc, InvitationsState>(
         listener: (context, state) {
@@ -71,7 +73,7 @@ class _InvitationsPageContent extends StatelessWidget {
               // Content
               Expanded(
                 child: state.filteredInvitations.isEmpty
-                    ? _buildEmptyState(state)
+                    ? _buildEmptyState(context, state)
                     : RefreshIndicator(
                         onRefresh: () async {
                           context.read<InvitationsBloc>().add(const InvitationsLoadRequested());
@@ -98,34 +100,36 @@ class _InvitationsPageContent extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(InvitationsState state) {
+  Widget _buildEmptyState(BuildContext context, InvitationsState state) {
+    final l10n = AppLocalizations.of(context)!;
     if (state.showUsedOnly == true) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.check_circle_outline,
-        title: 'لا توجد أكواد مستخدمة',
-        message: 'لم يتم استخدام أي كود دعوة حتى الآن',
+        title: l10n.invitation_noCodesUsed,
+        message: l10n.invitation_noCodesUsedSubtitle,
       );
     } else if (state.showUsedOnly == false) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.card_giftcard_outlined,
-        title: 'لا توجد أكواد متاحة',
-        message: 'جميع الأكواد تم استخدامها، قم بإنشاء أكواد جديدة',
+        title: l10n.invitation_noCodesAvailable,
+        message: l10n.invitation_noCodesAvailableSubtitle,
       );
     }
-    return const EmptyState(
+    return EmptyState(
       icon: Icons.card_giftcard_outlined,
-      title: 'لا توجد أكواد',
-      message: 'قم بإنشاء أكواد دعوة للمستخدمين الجدد',
+      title: l10n.invitation_noCodes,
+      message: l10n.invitation_noCodesSubtitle,
     );
   }
 
   void _showGenerateDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
       ),
@@ -138,8 +142,8 @@ class _InvitationsPageContent extends StatelessWidget {
 
             if (userId.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('خطأ: لم يتم العثور على المستخدم'),
+                SnackBar(
+                  content: Text(l10n.common_errorUserNotFound),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -172,14 +176,15 @@ class _StatsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      color: AppColors.primarySurface,
+      color: context.colors.primarySurface,
       child: Row(
         children: [
           Expanded(
             child: _StatItem(
-              label: 'الإجمالي',
+              label: l10n.common_total,
               value: total.toString(),
               color: AppColors.primary,
             ),
@@ -187,11 +192,11 @@ class _StatsHeader extends StatelessWidget {
           Container(
             width: 1,
             height: 40,
-            color: AppColors.border,
+            color: context.colors.border,
           ),
           Expanded(
             child: _StatItem(
-              label: 'مستخدمة',
+              label: l10n.invitation_statusUsed,
               value: used.toString(),
               color: AppColors.success,
             ),
@@ -199,11 +204,11 @@ class _StatsHeader extends StatelessWidget {
           Container(
             width: 1,
             height: 40,
-            color: AppColors.border,
+            color: context.colors.border,
           ),
           Expanded(
             child: _StatItem(
-              label: 'متاحة',
+              label: l10n.invitation_statusAvailable,
               value: unused.toString(),
               color: AppColors.warning,
             ),
@@ -240,7 +245,7 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
         ),
       ],
@@ -255,12 +260,13 @@ class _FilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Row(
         children: [
           _FilterChip(
-            label: 'الكل',
+            label: l10n.common_all,
             isSelected: currentFilter == null,
             onTap: () => context.read<InvitationsBloc>().add(
               const InvitationsFilterChanged(showUsedOnly: null),
@@ -268,7 +274,7 @@ class _FilterTabs extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _FilterChip(
-            label: 'متاحة',
+            label: l10n.invitation_tabAvailable,
             isSelected: currentFilter == false,
             onTap: () => context.read<InvitationsBloc>().add(
               const InvitationsFilterChanged(showUsedOnly: false),
@@ -277,7 +283,7 @@ class _FilterTabs extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           _FilterChip(
-            label: 'مستخدمة',
+            label: l10n.invitation_tabUsed,
             isSelected: currentFilter == true,
             onTap: () => context.read<InvitationsBloc>().add(
               const InvitationsFilterChanged(showUsedOnly: true),
@@ -314,7 +320,7 @@ class _FilterChip extends StatelessWidget {
         duration: AppSpacing.animationFast,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: isSelected ? chipColor : AppColors.surfaceVariant,
+          color: isSelected ? chipColor : context.colors.surfaceVariant,
           borderRadius: AppSpacing.borderRadiusFull,
           border: Border.all(
             color: isSelected ? chipColor : AppColors.border,
@@ -323,7 +329,7 @@ class _FilterChip extends StatelessWidget {
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+            color: isSelected ? AppColors.textOnPrimary : context.colors.textSecondary,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -337,20 +343,33 @@ class _InvitationCard extends StatelessWidget {
 
   const _InvitationCard({required this.invitation});
 
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final roleColor = AppColors.getRoleColor(invitation.role.name);
     final roleSurfaceColor = AppColors.getRoleSurfaceColor(invitation.role.name);
-    final dateFormat = DateFormat('dd/MM/yyyy', 'ar');
+    final dateFormat = DateFormat('dd/MM/yyyy', locale);
     final statusColor = invitation.used ? AppColors.success : AppColors.warning;
     final statusSurfaceColor = invitation.used ? AppColors.successSurface : AppColors.warningSurface;
 
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +384,7 @@ class _InvitationCard extends StatelessWidget {
                     vertical: AppSpacing.sm,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
+                    color: context.colors.surfaceVariant,
                     borderRadius: AppSpacing.borderRadiusSm,
                   ),
                   child: Row(
@@ -373,7 +392,7 @@ class _InvitationCard extends StatelessWidget {
                       Icon(
                         Icons.vpn_key,
                         size: 18,
-                        color: AppColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
@@ -391,13 +410,13 @@ class _InvitationCard extends StatelessWidget {
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: invitation.code));
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('تم نسخ الكود'),
-                              duration: Duration(seconds: 2),
+                            SnackBar(
+                              content: Text(l10n.invitation_codeCopied),
+                              duration: const Duration(seconds: 2),
                             ),
                           );
                         },
-                        tooltip: 'نسخ الكود',
+                        tooltip: l10n.invitation_copyCode,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         color: AppColors.primary,
@@ -429,7 +448,7 @@ class _InvitationCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      invitation.role.displayNameAr,
+                      _getRoleDisplayName(l10n, invitation.role),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: roleColor,
                         fontWeight: FontWeight.w600,
@@ -456,7 +475,7 @@ class _InvitationCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      invitation.used ? 'مستخدم' : 'متاح',
+                      invitation.used ? l10n.invitation_statusUsed : l10n.invitation_statusAvailable,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: statusColor,
                         fontWeight: FontWeight.w600,
@@ -470,7 +489,7 @@ class _InvitationCard extends StatelessWidget {
               Text(
                 dateFormat.format(invitation.createdAt),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: context.colors.textTertiary,
                 ),
               ),
               // Delete button (only for unused)
@@ -479,7 +498,7 @@ class _InvitationCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 20),
                   onPressed: () => _confirmDelete(context),
-                  tooltip: 'حذف',
+                  tooltip: l10n.common_delete,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   color: AppColors.error,
@@ -497,13 +516,13 @@ class _InvitationCard extends StatelessWidget {
                 Icon(
                   Icons.person_outline,
                   size: 16,
-                  color: AppColors.textTertiary,
+                  color: context.colors.textTertiary,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  'تم الاستخدام في ${dateFormat.format(invitation.usedAt!)}',
+                  l10n.invitation_usedOn(dateFormat.format(invitation.usedAt!)),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
+                    color: context.colors.textTertiary,
                   ),
                 ),
               ],
@@ -526,15 +545,16 @@ class _InvitationCard extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف كود الدعوة "${invitation.code}"؟'),
+        title: Text(l10n.common_confirmDelete),
+        content: Text(l10n.invitation_deleteConfirmMessage(invitation.code)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(l10n.common_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -544,7 +564,7 @@ class _InvitationCard extends StatelessWidget {
               );
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('حذف'),
+            child: Text(l10n.common_delete),
           ),
         ],
       ),
@@ -597,13 +617,14 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
   }
 
   Widget _buildFormContent(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Title
         Text(
-          'إنشاء كود دعوة',
+          l10n.invitation_create,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -611,16 +632,16 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'سيتم إنشاء كود فريد يمكن استخدامه مرة واحدة للتسجيل',
+          l10n.invitation_createCodeSubtitle,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.lg),
         // Role selection
         Text(
-          'الدور',
+          l10n.invitation_role,
           style: Theme.of(context).textTheme.labelLarge,
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -656,7 +677,7 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         const SizedBox(height: AppSpacing.lg),
         // Generate button
         RibalButton(
-          text: 'إنشاء الكود',
+          text: l10n.invitation_createCode,
           isLoading: _isSubmitting,
           onPressed: () {
             setState(() => _isSubmitting = true);
@@ -666,7 +687,7 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         const SizedBox(height: AppSpacing.sm),
         // Cancel button
         RibalButton(
-          text: 'إلغاء',
+          text: l10n.common_cancel,
           variant: RibalButtonVariant.outline,
           onPressed: () => Navigator.pop(context),
         ),
@@ -675,6 +696,7 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
   }
 
   Widget _buildSuccessContent(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -684,7 +706,7 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
           width: 64,
           height: 64,
           margin: const EdgeInsets.only(bottom: AppSpacing.md),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.successSurface,
             shape: BoxShape.circle,
           ),
@@ -696,7 +718,7 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         ),
         // Title
         Text(
-          'تم إنشاء الكود بنجاح!',
+          l10n.invitation_successTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -707,16 +729,16 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
+            color: context.colors.surfaceVariant,
             borderRadius: AppSpacing.borderRadiusMd,
             border: Border.all(color: AppColors.primary, width: 2),
           ),
           child: Column(
             children: [
               Text(
-                'كود الدعوة',
+                l10n.invitation_invitationCode,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -752,7 +774,7 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                'الدور: ${_selectedRole.displayNameAr}',
+                l10n.invitation_roleLabel(_getRoleDisplayName(l10n, _selectedRole)),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: AppColors.getRoleColor(_selectedRole.name),
                   fontWeight: FontWeight.w600,
@@ -764,14 +786,14 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         const SizedBox(height: AppSpacing.lg),
         // Copy button
         RibalButton(
-          text: 'نسخ الكود',
+          text: l10n.invitation_copyCodeButton,
           icon: Icons.copy,
           onPressed: () {
             Clipboard.setData(ClipboardData(text: _generatedCode!));
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('تم نسخ الكود'),
-                duration: Duration(seconds: 2),
+              SnackBar(
+                content: Text(l10n.invitation_codeCopied),
+                duration: const Duration(seconds: 2),
               ),
             );
           },
@@ -779,7 +801,7 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         const SizedBox(height: AppSpacing.sm),
         // Close button
         RibalButton(
-          text: 'إغلاق',
+          text: l10n.common_close,
           variant: RibalButtonVariant.outline,
           onPressed: () => Navigator.pop(context),
         ),
@@ -795,6 +817,17 @@ class _GenerateInvitationDialogState extends State<_GenerateInvitationDialog> {
         return Icons.manage_accounts;
       case UserRole.employee:
         return Icons.person;
+    }
+  }
+
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
     }
   }
 }
@@ -814,8 +847,31 @@ class _RoleOption extends StatelessWidget {
     this.isLast = false,
   });
 
+  String _getRoleDisplayName(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.user_roleAdmin;
+      case UserRole.manager:
+        return l10n.user_roleManager;
+      case UserRole.employee:
+        return l10n.user_roleEmployee;
+    }
+  }
+
+  String _getRoleDescription(AppLocalizations l10n, UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return l10n.whitelist_roleAdminDesc;
+      case UserRole.manager:
+        return l10n.whitelist_roleManagerDesc;
+      case UserRole.employee:
+        return l10n.whitelist_roleEmployeeDesc;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final roleColor = AppColors.getRoleColor(role.name);
     final roleSurfaceColor = AppColors.getRoleSurfaceColor(role.name);
 
@@ -840,12 +896,12 @@ class _RoleOption extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: isSelected ? roleColor : AppColors.surfaceVariant,
+                color: isSelected ? roleColor : context.colors.surfaceVariant,
                 borderRadius: AppSpacing.borderRadiusSm,
               ),
               child: Icon(
                 _getRoleIcon(),
-                color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+                color: isSelected ? AppColors.textOnPrimary : context.colors.textSecondary,
                 size: 18,
               ),
             ),
@@ -855,16 +911,16 @@ class _RoleOption extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    role.displayNameAr,
+                    _getRoleDisplayName(l10n, role),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? roleColor : AppColors.textPrimary,
+                      color: isSelected ? roleColor : context.colors.textPrimary,
                     ),
                   ),
                   Text(
-                    _getRoleDescription(),
+                    _getRoleDescription(l10n, role),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
+                      color: context.colors.textTertiary,
                     ),
                   ),
                 ],
@@ -890,17 +946,6 @@ class _RoleOption extends StatelessWidget {
         return Icons.manage_accounts;
       case UserRole.employee:
         return Icons.person;
-    }
-  }
-
-  String _getRoleDescription() {
-    switch (role) {
-      case UserRole.admin:
-        return 'صلاحيات كاملة لإدارة النظام';
-      case UserRole.manager:
-        return 'إدارة المهام والموظفين المعينين';
-      case UserRole.employee:
-        return 'تنفيذ المهام المسندة';
     }
   }
 }

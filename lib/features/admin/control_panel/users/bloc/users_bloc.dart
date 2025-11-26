@@ -38,8 +38,16 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     await _usersSubscription?.cancel();
 
     _usersSubscription = _userRepository.streamAllUsers().listen(
-      (users) => add(_UsersDataReceived(users: users)),
-      onError: (error) => add(const _UsersErrorReceived()),
+      (users) {
+        if (!isClosed) {
+          add(_UsersDataReceived(users: users));
+        }
+      },
+      onError: (error) {
+        if (!isClosed) {
+          add(const _UsersErrorReceived());
+        }
+      },
     );
   }
 

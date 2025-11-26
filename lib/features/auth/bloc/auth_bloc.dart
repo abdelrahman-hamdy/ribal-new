@@ -315,7 +315,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   void _listenToUserChanges(String userId) {
     _authSubscription?.cancel();
     _authSubscription = _userRepository.streamUser(userId).listen((user) {
-      if (user != null) {
+      if (user != null && !isClosed) {
         add(AuthUserChanged(user: user));
       }
     });

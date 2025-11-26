@@ -59,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: context.colors.background,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -79,14 +79,16 @@ class _LoginPageState extends State<LoginPage> {
                       // Title
                       Text(
                         'تسجيل الدخول',
-                        style: AppTypography.displayMedium,
+                        style: AppTypography.displayMedium.copyWith(
+                          color: context.colors.textPrimary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         'أدخل بياناتك للدخول إلى حسابك',
                         style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -132,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
                           Text(
                             'ليس لديك حساب؟',
                             style: AppTypography.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                           TextButton(

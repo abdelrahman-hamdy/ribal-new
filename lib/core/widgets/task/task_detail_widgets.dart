@@ -9,10 +9,13 @@ import '../../../data/models/label_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../features/admin/tasks/bloc/task_detail_bloc.dart';
 import '../../../features/auth/bloc/auth_bloc.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../animated/animated_count.dart';
 import '../avatar/ribal_avatar.dart';
 import '../feedback/empty_state.dart';
+import '../notes/notes_dialog.dart';
 
 /// Styled action button with icon and label
 class TaskActionButton extends StatelessWidget {
@@ -37,22 +40,21 @@ class TaskActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
-          vertical: AppSpacing.smd,
+          vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color,
           borderRadius: AppSpacing.borderRadiusSm,
-          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 20),
+            Icon(icon, color: Colors.white, size: 18),
             const SizedBox(width: AppSpacing.xs),
             Text(
               label,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: color,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -112,22 +114,23 @@ class TaskCreatorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (creator == null) {
       return Row(
         children: [
-          const Icon(Icons.person_outline, size: 18, color: AppColors.textTertiary),
+          Icon(Icons.person_outline, size: 18, color: context.colors.textTertiary),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            'أنشئت بواسطة:',
+            '${l10n.task_createdBy}:',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
+                  color: context.colors.textTertiary,
                 ),
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            'غير معروف',
+            l10n.user_unknown,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
           ),
@@ -140,9 +143,9 @@ class TaskCreatorRow extends StatelessWidget {
     return Row(
       children: [
         Text(
-          'أنشئت بواسطة:',
+          '${l10n.task_createdBy}:',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -194,12 +197,12 @@ class TaskMetaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.textTertiary),
+        Icon(icon, size: 18, color: context.colors.textTertiary),
         const SizedBox(width: AppSpacing.sm),
         Text(
           '$label:',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
+                color: context.colors.textTertiary,
               ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -207,7 +210,7 @@ class TaskMetaRow extends StatelessWidget {
           child: Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: valueColor ?? AppColors.textPrimary,
+                  color: valueColor ?? context.colors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
           ),
@@ -217,7 +220,8 @@ class TaskMetaRow extends StatelessWidget {
   }
 }
 
-/// Task stats section showing completion status
+/// Task stats section showing completion status with animated counts
+/// Always visible with 0 values during loading, animated to actual values when loaded
 class TaskStatsSection extends StatelessWidget {
   final TaskDetailState state;
 
@@ -225,16 +229,22 @@ class TaskStatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isLoading = state.isAssigneesLoading;
     final total = state.assignees.length;
     final completed = state.completedCount;
     final pending = state.pendingCount;
     final apologized = state.apologizedCount;
 
+    final subtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: context.colors.textSecondary,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'إحصائيات المهمة',
+          l10n.statistics_taskStatistics,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -243,51 +253,72 @@ class TaskStatsSection extends StatelessWidget {
         Row(
           children: [
             TaskStatIndicator(
-              label: 'مكتمل',
+              label: l10n.task_statusDone,
               count: completed,
               color: AppColors.progressDone,
+              isLoading: isLoading,
             ),
             const SizedBox(width: AppSpacing.lg),
             TaskStatIndicator(
-              label: 'قيد الانتظار',
+              label: l10n.task_statusPending,
               count: pending,
               color: AppColors.progressPending,
+              isLoading: isLoading,
             ),
             const SizedBox(width: AppSpacing.lg),
             TaskStatIndicator(
-              label: 'معتذر',
+              label: l10n.task_statusApologized,
               count: apologized,
               color: AppColors.progressOverdue,
+              isLoading: isLoading,
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          '$completed من $total مكلف أنهوا المهمة',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+        // Subtitle with animated counts
+        Row(
+          children: [
+            AnimatedStatCount(
+              isLoading: isLoading,
+              count: completed,
+              style: subtitleStyle,
+            ),
+            Text(' ${l10n.common_of} ', style: subtitleStyle),
+            AnimatedStatCount(
+              isLoading: isLoading,
+              count: total,
+              style: subtitleStyle,
+            ),
+            Text(' ${l10n.task_assigneesCompleted}', style: subtitleStyle),
+          ],
         ),
       ],
     );
   }
 }
 
-/// Simple stat indicator with colored circle
+/// Simple stat indicator with colored circle and animated count
 class TaskStatIndicator extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
+  final bool isLoading;
 
   const TaskStatIndicator({
     super.key,
     required this.label,
     required this.count,
     required this.color,
+    this.isLoading = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: context.colors.textSecondary,
+      fontWeight: FontWeight.w600,
+    );
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -300,12 +331,11 @@ class TaskStatIndicator extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
-        Text(
-          '$label: $count',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+        Text('$label: ', style: textStyle),
+        AnimatedStatCount(
+          isLoading: isLoading,
+          count: count,
+          style: textStyle,
         ),
       ],
     );
@@ -320,14 +350,15 @@ class TaskInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final task = state.task!;
 
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,7 +387,7 @@ class TaskInfoCard extends StatelessWidget {
             Text(
               task.description,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -369,23 +400,23 @@ class TaskInfoCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           TaskMetaRow(
             icon: Icons.calendar_today_outlined,
-            label: 'تاريخ الإنشاء',
+            label: l10n.task_createdAt,
             value: DateFormat('d MMMM yyyy', 'ar').format(task.createdAt),
           ),
           const SizedBox(height: AppSpacing.sm),
           TaskMetaRow(
             icon: task.isRecurring ? Icons.repeat : Icons.event,
-            label: 'النوع',
-            value: task.isRecurring ? 'متكررة' : 'لمرة واحدة',
+            label: l10n.task_type,
+            value: task.isRecurring ? l10n.task_typeRecurring : l10n.task_typeOnce,
           ),
 
           // Attachment
           if (task.hasAttachment) ...[
             const SizedBox(height: AppSpacing.sm),
-            const TaskMetaRow(
+            TaskMetaRow(
               icon: Icons.attach_file,
-              label: 'مرفق',
-              value: 'يوجد مرفق',
+              label: l10n.task_attachment,
+              value: l10n.task_hasAttachment,
               valueColor: AppColors.primary,
             ),
           ],
@@ -398,7 +429,7 @@ class TaskInfoCard extends StatelessWidget {
                 const Icon(Icons.upload_file, size: 18, color: AppColors.warning),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
-                  'مرفق مطلوب',
+                  l10n.task_attachmentRequired,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.warning,
                         fontWeight: FontWeight.w600,
@@ -408,11 +439,9 @@ class TaskInfoCard extends StatelessWidget {
             ),
           ],
 
-          // Task Stats Section
-          if (state.assignees.isNotEmpty) ...[
-            const Divider(height: AppSpacing.xl),
-            TaskStatsSection(state: state),
-          ],
+          // Task Stats Section - always show with animated counts
+          const Divider(height: AppSpacing.xl),
+          TaskStatsSection(state: state),
         ],
       ),
     );
@@ -436,6 +465,7 @@ class TaskActionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final task = state.task;
     if (task == null) return const SizedBox.shrink();
 
@@ -447,7 +477,7 @@ class TaskActionsSection extends StatelessWidget {
         Expanded(
           child: TaskActionButton(
             icon: Icons.edit_note_rounded,
-            label: 'تعديل',
+            label: l10n.common_edit,
             color: AppColors.primary,
             onPressed: onEdit,
           ),
@@ -458,7 +488,7 @@ class TaskActionsSection extends StatelessWidget {
           Expanded(
             child: TaskActionButton(
               icon: Icons.stop_circle_outlined,
-              label: 'إيقاف',
+              label: l10n.task_stop,
               color: AppColors.warning,
               onPressed: onArchive,
             ),
@@ -469,7 +499,7 @@ class TaskActionsSection extends StatelessWidget {
         Expanded(
           child: TaskActionButton(
             icon: Icons.delete_outline_rounded,
-            label: 'حذف',
+            label: l10n.common_delete,
             color: AppColors.error,
             onPressed: onDelete,
           ),
@@ -484,21 +514,24 @@ class TaskAssigneesSection extends StatelessWidget {
   final TaskDetailState state;
   final void Function(String userId)? onUserTap;
   final bool showAttachmentView;
+  final bool showViewNotes;
 
   const TaskAssigneesSection({
     super.key,
     required this.state,
     this.onUserTap,
     this.showAttachmentView = false,
+    this.showViewNotes = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'المكلفين اليوم',
+          l10n.task_assigneesToday,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -518,10 +551,10 @@ class TaskAssigneesSection extends StatelessWidget {
             ),
           )
         else if (state.assignees.isEmpty)
-          const EmptyState(
+          EmptyState(
             icon: Icons.people_outline,
-            title: 'لا يوجد مكلفين',
-            message: 'لم يتم تكليف أي شخص بهذه المهمة اليوم',
+            title: l10n.task_noAssigneesToday,
+            message: l10n.task_noAssigneesTodaySubtitle,
           )
         else
           ListView.separated(
@@ -536,6 +569,9 @@ class TaskAssigneesSection extends StatelessWidget {
                 isLoading: state.loadingAssignmentId == assignee.assignment.id,
                 onUserTap: onUserTap,
                 showAttachmentView: showAttachmentView,
+                showViewNotes: showViewNotes,
+                taskId: state.taskId,
+                taskTitle: state.task?.title,
               );
             },
           ),
@@ -550,6 +586,9 @@ class TaskAssigneeCard extends StatelessWidget {
   final bool isLoading;
   final void Function(String userId)? onUserTap;
   final bool showAttachmentView;
+  final bool showViewNotes;
+  final String? taskId;
+  final String? taskTitle;
 
   const TaskAssigneeCard({
     super.key,
@@ -557,6 +596,9 @@ class TaskAssigneeCard extends StatelessWidget {
     this.isLoading = false,
     this.onUserTap,
     this.showAttachmentView = false,
+    this.showViewNotes = false,
+    this.taskId,
+    this.taskTitle,
   });
 
   Color _getAssignmentStatusColor(AssignmentStatus status) {
@@ -566,12 +608,27 @@ class TaskAssigneeCard extends StatelessWidget {
       case AssignmentStatus.pending:
         return AppColors.progressPending;
       case AssignmentStatus.apologized:
-        return AppColors.progressOverdue;
+      case AssignmentStatus.overdue:
+        return AppColors.progressOverdue; // Both are "failed" states (red)
+    }
+  }
+
+  String _getStatusDisplayName(AppLocalizations l10n, AssignmentStatus status) {
+    switch (status) {
+      case AssignmentStatus.pending:
+        return l10n.task_statusPending;
+      case AssignmentStatus.completed:
+        return l10n.task_completed;
+      case AssignmentStatus.apologized:
+        return l10n.task_statusApologized;
+      case AssignmentStatus.overdue:
+        return l10n.task_statusOverdue;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final user = assignee.user;
     final assignment = assignee.assignment;
     final status = assignment.status;
@@ -580,145 +637,252 @@ class TaskAssigneeCard extends StatelessWidget {
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Avatar
-          if (user != null)
-            RibalAvatar(
-              user: user,
-              size: RibalAvatarSize.md,
-              onTap: onUserTap != null ? () => onUserTap!(user.id) : null,
-            )
-          else
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceVariant,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(Icons.person, color: AppColors.textTertiary),
-              ),
-            ),
-          const SizedBox(width: AppSpacing.md),
-
-          // Info
-          Expanded(
-            child: GestureDetector(
-              onTap: user != null && onUserTap != null ? () => onUserTap!(user.id) : null,
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user?.fullName ?? 'مستخدم غير معروف',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+          // Main row: Avatar, info, and primary action
+          Row(
+            children: [
+              // Avatar
+              if (user != null)
+                RibalAvatar(
+                  user: user,
+                  size: RibalAvatarSize.md,
+                  onTap: onUserTap != null ? () => onUserTap!(user.id) : null,
+                )
+              else
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceVariant,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Row(
+                  child: Center(
+                    child: Icon(Icons.person, color: context.colors.textTertiary),
+                  ),
+                ),
+              const SizedBox(width: AppSpacing.md),
+
+              // Info
+              Expanded(
+                child: GestureDetector(
+                  onTap: user != null && onUserTap != null ? () => onUserTap!(user.id) : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
                       Text(
-                        status.displayNameAr,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: statusColor,
+                        user?.fullName ?? l10n.user_unknown,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
                       ),
-                      if (assignment.isCompletedByCreator) ...[
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          '(بواسطة الإدارة)',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textTertiary,
-                                fontSize: 10,
-                              ),
-                        ),
-                      ],
-                      // Show attachment indicator
-                      if (showAttachmentView && assignment.hasAttachment) ...[
-                        const SizedBox(width: AppSpacing.sm),
-                        _AttachmentViewLink(attachmentUrl: assignment.attachmentUrl!),
-                      ],
+                      const SizedBox(height: AppSpacing.xxs),
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            _getStatusDisplayName(l10n, status),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: statusColor,
+                                ),
+                          ),
+                          if (assignment.isCompletedByCreator) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              l10n.assignment_byAdmin,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colors.textTertiary,
+                                    fontSize: 10,
+                                  ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+
+              // Primary action: Mark done button (prominent)
+              if (status == AssignmentStatus.pending)
+                TaskMarkDoneButton(
+                  assignmentId: assignment.id,
+                  isLoading: isLoading,
+                ),
+            ],
           ),
 
-          // Action button for pending assignments
-          if (status == AssignmentStatus.pending)
-            TaskMarkDoneButton(
-              assignmentId: assignment.id,
-              isLoading: isLoading,
+          // Secondary actions row (notes, attachment, apologize reason)
+          if (_hasSecondaryActions(assignment)) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                const SizedBox(width: 52), // Offset for avatar alignment
+                // View notes button
+                if (showViewNotes && taskId != null)
+                  _SecondaryActionButton(
+                    icon: Icons.chat_bubble_outline,
+                    label: assignee.notesCount > 0
+                        ? '${l10n.notes_title} (${assignee.notesCount})'
+                        : l10n.notes_title,
+                    onTap: () => _showNotesDialog(context, user),
+                  ),
+                // Attachment button (orange)
+                if (showAttachmentView && assignment.hasAttachment) ...[
+                  if (showViewNotes && taskId != null)
+                    const SizedBox(width: AppSpacing.sm),
+                  _SecondaryActionButton(
+                    icon: Icons.attach_file,
+                    label: l10n.task_attachment,
+                    color: AppColors.warning,
+                    onTap: () => _openAttachment(context, assignment.attachmentUrl!),
+                  ),
+                ],
+                // Apologize reason button (red, only for apologized users)
+                if (assignment.status.isApologized && assignment.hasApologizeMessage) ...[
+                  if ((showViewNotes && taskId != null) ||
+                      (showAttachmentView && assignment.hasAttachment))
+                    const SizedBox(width: AppSpacing.sm),
+                  _SecondaryActionButton(
+                    icon: Icons.info_outline,
+                    label: l10n.assignment_apologizeReason,
+                    color: AppColors.error,
+                    onTap: () => _showApologizeReason(context, assignment.apologizeMessage!),
+                  ),
+                ],
+              ],
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  bool _hasSecondaryActions(AssignmentModel assignment) {
+    return (showViewNotes && taskId != null) ||
+        (showAttachmentView && assignment.hasAttachment) ||
+        assignment.status.isApologized;
+  }
+
+  void _showNotesDialog(BuildContext context, UserModel? user) {
+    final l10n = AppLocalizations.of(context)!;
+    NotesDialog.show(
+      context: context,
+      assignmentId: assignee.assignment.id,
+      taskId: taskId!,
+      assigneeName: user?.fullName ?? l10n.user_unknown,
+      currentUserId: (context.read<AuthBloc>().state as AuthAuthenticated).user.id,
+      currentUserName: (context.read<AuthBloc>().state as AuthAuthenticated).user.fullName,
+      currentUserRole: (context.read<AuthBloc>().state as AuthAuthenticated).user.role,
+      assigneeId: user?.id,
+      taskTitle: taskTitle,
+    );
+  }
+
+  Future<void> _openAttachment(BuildContext context, String url) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.error_fileOpen),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.error_fileOpenGeneric),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showApologizeReason(BuildContext context, String reason) {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline, color: AppColors.error),
+            const SizedBox(width: AppSpacing.sm),
+            Text(l10n.assignment_apologizeReason),
+          ],
+        ),
+        content: Text(reason),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.common_close),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Attachment view link widget
-class _AttachmentViewLink extends StatelessWidget {
-  final String attachmentUrl;
+/// Secondary action button (smaller, subtle)
+class _SecondaryActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
 
-  const _AttachmentViewLink({required this.attachmentUrl});
+  const _SecondaryActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final buttonColor = color ?? context.colors.textSecondary;
     return GestureDetector(
-      onTap: () async {
-        try {
-          final url = Uri.parse(attachmentUrl);
-          final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
-          if (!launched && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('لم يتمكن من فتح الملف'),
-                backgroundColor: AppColors.error,
-              ),
-            );
-          }
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('خطأ في فتح الملف'),
-                backgroundColor: AppColors.error,
-              ),
-            );
-          }
-        }
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.attach_file, size: 14, color: AppColors.primary),
-          const SizedBox(width: 2),
-          Text(
-            'عرض المرفق',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.underline,
-                ),
-          ),
-        ],
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: color != null ? color!.withValues(alpha: 0.1) : context.colors.surfaceVariant,
+          borderRadius: AppSpacing.borderRadiusSm,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: buttonColor),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: buttonColor,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -737,6 +901,7 @@ class TaskMarkDoneButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         final currentUserId = authState is AuthAuthenticated ? authState.user.id : '';
@@ -774,7 +939,7 @@ class TaskMarkDoneButton extends StatelessWidget {
                       const Icon(Icons.check, size: 16, color: Colors.white),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
-                        'تم',
+                        l10n.common_done,
                         style: Theme.of(context).textTheme.labelMedium?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -798,9 +963,9 @@ class TaskAssigneeCardSkeleton extends StatelessWidget {
     return Container(
       padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: const Row(
         children: [

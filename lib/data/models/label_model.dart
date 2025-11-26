@@ -22,6 +22,15 @@ class LabelModel with _$LabelModel {
   factory LabelModel.fromJson(Map<String, dynamic> json) =>
       _$LabelModelFromJson(json);
 
+  /// Create fake data for skeleton loading
+  factory LabelModel.fake() => LabelModel(
+        id: 'fake-id',
+        name: 'تسمية',
+        color: '#3B82F6',
+        createdBy: 'fake-creator-id',
+        createdAt: DateTime.now(),
+      );
+
   /// Create from Firestore document
   factory LabelModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;

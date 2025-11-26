@@ -83,7 +83,9 @@ class _RibalTextFieldState extends State<RibalTextField> {
         if (widget.label != null) ...[
           Text(
             widget.label!,
-            style: AppTypography.inputLabel,
+            style: AppTypography.inputLabel.copyWith(
+              color: context.colors.textSecondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
         ],
@@ -99,7 +101,9 @@ class _RibalTextFieldState extends State<RibalTextField> {
           maxLines: widget.obscureText ? 1 : widget.maxLines,
           minLines: widget.minLines,
           maxLength: widget.maxLength,
-          style: AppTypography.input,
+          style: AppTypography.input.copyWith(
+            color: context.colors.textPrimary,
+          ),
           inputFormatters: widget.inputFormatters,
           onChanged: widget.onChanged,
           onEditingComplete: widget.onEditingComplete,
@@ -121,7 +125,7 @@ class _RibalTextFieldState extends State<RibalTextField> {
                     icon: Icon(
                       _obscureText ? Icons.visibility_off : Icons.visibility,
                       size: AppSpacing.iconMd,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                     onPressed: () {
                       setState(() {

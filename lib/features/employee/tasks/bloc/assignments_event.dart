@@ -18,32 +18,6 @@ class AssignmentsLoadRequested extends AssignmentsEvent {
   List<Object?> get props => [userId];
 }
 
-/// Internal event when stream emits new assignments data
-class _AssignmentsStreamUpdated extends AssignmentsEvent {
-  final String userId;
-  final List<AssignmentWithTask> assignmentsWithTasks;
-  final String? taskDeadline;
-
-  const _AssignmentsStreamUpdated({
-    required this.userId,
-    required this.assignmentsWithTasks,
-    this.taskDeadline,
-  });
-
-  @override
-  List<Object?> get props => [userId, assignmentsWithTasks, taskDeadline];
-}
-
-/// Internal event when stream encounters an error
-class _AssignmentsStreamError extends AssignmentsEvent {
-  final String errorMessage;
-
-  const _AssignmentsStreamError({required this.errorMessage});
-
-  @override
-  List<Object?> get props => [errorMessage];
-}
-
 /// Mark assignment as completed
 class AssignmentMarkCompletedRequested extends AssignmentsEvent {
   final String assignmentId;
