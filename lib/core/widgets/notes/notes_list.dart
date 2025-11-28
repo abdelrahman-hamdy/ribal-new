@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/note_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../utils/ksa_timezone.dart';
 import 'note_bubble.dart';
 
 /// Scrollable list of notes with empty state
@@ -42,23 +42,18 @@ class NotesList extends StatelessWidget {
         final note = notes[index];
         final isCurrentUser = note.senderId == currentUserId;
 
-        // Add date separator if needed
-        final showDateSeparator = _shouldShowDateSeparator(index);
-
-        return Column(
-          children: [
-            if (showDateSeparator) _buildDateSeparator(context, notes[index].createdAt),
-            NoteBubble(
-              note: note,
-              isCurrentUser: isCurrentUser,
-            ),
-          ],
+        // No date separators - notes are always for today
+        return NoteBubble(
+          note: note,
+          isCurrentUser: isCurrentUser,
         );
       },
     );
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -77,14 +72,14 @@ class NotesList extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'لا توجد ملاحظات بعد',
+            l10n.notes_noNotesYet,
             style: AppTypography.bodyLarge.copyWith(
               color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'ابدأ المحادثة بإرسال ملاحظة',
+            l10n.notes_startConversation,
             style: AppTypography.bodySmall.copyWith(
               color: context.colors.textTertiary,
             ),
@@ -92,60 +87,5 @@ class NotesList extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  bool _shouldShowDateSeparator(int index) {
-    if (index == 0) return true;
-
-    final currentDate = DateTime(
-      notes[index].createdAt.year,
-      notes[index].createdAt.month,
-      notes[index].createdAt.day,
-    );
-
-    final previousDate = DateTime(
-      notes[index - 1].createdAt.year,
-      notes[index - 1].createdAt.month,
-      notes[index - 1].createdAt.day,
-    );
-
-    return currentDate != previousDate;
-  }
-
-  Widget _buildDateSeparator(BuildContext context, DateTime date) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.sm,
-        horizontal: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Expanded(child: Divider(color: context.colors.border)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Text(
-              _formatDateSeparator(date),
-              style: AppTypography.labelSmall.copyWith(
-                color: context.colors.textTertiary,
-              ),
-            ),
-          ),
-          Expanded(child: Divider(color: context.colors.border)),
-        ],
-      ),
-    );
-  }
-
-  String _formatDateSeparator(DateTime date) {
-    final today = KsaTimezone.today();
-    final noteDate = DateTime(date.year, date.month, date.day);
-
-    if (noteDate == today) {
-      return 'اليوم';
-    } else if (noteDate == today.subtract(const Duration(days: 1))) {
-      return 'أمس';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
   }
 }

@@ -13,7 +13,9 @@ import '../../../../../core/widgets/feedback/loading_state.dart';
 import '../../../../../data/models/assignment_model.dart';
 import '../../../../../data/models/group_model.dart';
 import '../../../../../data/models/user_model.dart';
+import '../../../../../data/repositories/user_repository.dart';
 import '../../../../../l10n/generated/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../auth/bloc/auth_bloc.dart';
 import '../bloc/user_profile_bloc.dart';
 
@@ -321,13 +323,20 @@ class _TimeFilterDropdown extends StatelessWidget {
         child: DropdownButton<TimeFilter>(
           value: currentFilter,
           isDense: true,
-          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+          dropdownColor: context.colors.surface,
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            size: 20,
+            color: context.colors.textSecondary,
+          ),
           items: TimeFilter.values.map((filter) {
             return DropdownMenuItem(
               value: filter,
               child: Text(
                 _getFilterDisplayName(l10n, filter),
-                style: AppTypography.labelMedium,
+                style: AppTypography.labelMedium.copyWith(
+                  color: context.colors.textPrimary,
+                ),
               ),
             );
           }).toList(),
@@ -547,8 +556,8 @@ class _TodayAssignmentsSection extends StatelessWidget {
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+              itemCount: 5,
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) => const _AssignmentCardSkeleton(),
             ),
           )
@@ -595,7 +604,7 @@ class _TodayAssignmentsSection extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: assignments.length,
             separatorBuilder: (context, index) =>
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.md),
             itemBuilder: (context, index) {
               final assignment = assignments[index];
               return _AssignmentCard(
@@ -906,10 +915,77 @@ class _AdminActionsSection extends StatelessWidget {
                   onTap: () => _showGroupAssignmentDialog(context),
                 ),
               ],
+
+              // Delete account action
+              const Divider(height: AppSpacing.lg),
+              _AdminActionButton(
+                icon: Icons.delete_forever,
+                iconColor: AppColors.error,
+                title: l10n.profile_deleteAccount,
+                subtitle: l10n.profile_deleteAccountConfirm,
+                isLoading: false,
+                onTap: () => _showDeleteAccountDialog(context, user),
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, UserModel user) {
+    final l10n = AppLocalizations.of(context)!;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.profile_deleteAccount),
+        content: Text(l10n.profile_deleteAccountConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.common_cancel),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+
+              try {
+                // Delete user from Firestore
+                await getIt<UserRepository>().deleteUser(user.id);
+
+                if (context.mounted) {
+                  // Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(l10n.profile_accountDeleted),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+
+                  // Navigate back to users list
+                  if (context.canPop()) {
+                    context.pop();
+                  }
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${l10n.common_error}: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(
+              l10n.common_delete,
+              style: const TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

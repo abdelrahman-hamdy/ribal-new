@@ -30,6 +30,9 @@ class TaskCreateRequested extends TasksEvent {
   final List<String> selectedGroupIds;
   final List<String> selectedUserIds;
   final String createdBy;
+  // Denormalized creator info to avoid extra user fetch
+  final String? creatorName;
+  final String? creatorEmail;
 
   const TaskCreateRequested({
     required this.title,
@@ -42,6 +45,8 @@ class TaskCreateRequested extends TasksEvent {
     this.selectedGroupIds = const [],
     this.selectedUserIds = const [],
     required this.createdBy,
+    this.creatorName,
+    this.creatorEmail,
   });
 
   @override
@@ -56,6 +61,8 @@ class TaskCreateRequested extends TasksEvent {
         selectedGroupIds,
         selectedUserIds,
         createdBy,
+        creatorName,
+        creatorEmail,
       ];
 }
 

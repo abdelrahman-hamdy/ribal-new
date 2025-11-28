@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../app/di/injection.dart';
+import '../../../app/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/feedback/empty_state.dart';
 import '../../../data/models/notification_model.dart';
+import '../../../data/models/user_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../bloc/notifications_bloc.dart';
 
@@ -48,11 +51,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return BlocProvider.value(
       value: _notificationsBloc,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('الإشعارات'),
+          title: Text(l10n.notification_title),
           actions: [
             BlocBuilder<NotificationsBloc, NotificationsState>(
               builder: (context, state) {
@@ -64,7 +69,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             .add(NotificationsMarkAllAsReadRequested(_userId!));
                       }
                     },
-                    child: const Text('قراءة الكل'),
+                    child: Text(l10n.notification_markAllRead),
                   );
                 }
                 return const SizedBox.shrink();
@@ -99,10 +104,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
             }
 
             if (state.notifications.isEmpty) {
-              return const EmptyState(
+              return EmptyState(
                 icon: Icons.notifications_outlined,
-                title: 'لا توجد إشعارات',
-                message: 'ستظهر الإشعارات الجديدة هنا',
+                title: l10n.notification_noNotifications,
+                message: l10n.notification_noNotificationsSubtitle,
               );
             }
 
@@ -138,7 +143,50 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     // Navigate to deep link if available
     if (notification.hasDeepLink) {
-      context.push(notification.deepLink!);
+      final authState = context.read<AuthBloc>().state;
+      if (authState is! AuthAuthenticated) return;
+
+      final userRole = authState.user.role;
+      final deepLink = notification.deepLink!;
+
+      // Convert generic deepLinks to role-specific routes
+      final String targetRoute;
+
+      // Handle task deepLinks: /tasks/{id} → role-specific task detail route
+      final taskMatch = RegExp(r'^/tasks/(.+)$').firstMatch(deepLink);
+      if (taskMatch != null) {
+        final taskId = taskMatch.group(1)!;
+        targetRoute = switch (userRole) {
+          UserRole.admin => Routes.adminTaskDetailPath(taskId),
+          UserRole.manager => Routes.managerTaskDetailPath(taskId),
+          // Employees don't have task detail pages, navigate to their tasks page
+          UserRole.employee => Routes.employeeTasks,
+        };
+      }
+      // Handle assignment deepLinks: /assignments/{id} → role-specific assignment detail route
+      else {
+        final assignmentMatch = RegExp(r'^/assignments/(.+)$').firstMatch(deepLink);
+        if (assignmentMatch != null) {
+          final assignmentId = assignmentMatch.group(1)!;
+          targetRoute = switch (userRole) {
+            UserRole.manager => Routes.managerAssignmentDetailPath(assignmentId),
+            UserRole.employee => Routes.employeeAssignmentDetailPath(assignmentId),
+            // Admins don't have assignment detail pages, navigate to tasks page
+            UserRole.admin => Routes.adminTasks,
+          };
+        } else {
+          // For other deepLinks, use as-is (e.g., "/" for home page)
+          targetRoute = deepLink;
+        }
+      }
+
+      // Navigate to the resolved route
+      if (targetRoute.isNotEmpty) {
+        // Pop notifications page first to go back to where user was
+        context.pop();
+        // Push to target route (maintains proper navigation stack)
+        context.push(targetRoute);
+      }
     }
   }
 

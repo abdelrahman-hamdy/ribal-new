@@ -89,7 +89,7 @@ class TaskListSkeletonList extends StatelessWidget {
 
   const TaskListSkeletonList({
     super.key,
-    this.itemCount = 3,
+    this.itemCount = 5,
   });
 
   @override
@@ -101,7 +101,7 @@ class TaskListSkeletonList extends StatelessWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: itemCount,
-        separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+        separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
         itemBuilder: (context, index) => const TaskListItemSkeleton(),
       ),
     );

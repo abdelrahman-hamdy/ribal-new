@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/buttons/ribal_button.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 
 class VerifyEmailPage extends StatefulWidget {
@@ -67,6 +68,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
@@ -77,10 +80,13 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
             _ => Routes.employeeTasks,
           };
           context.go(route);
+        } else if (state is AuthUnauthenticated) {
+          _checkTimer?.cancel();
+          context.go(Routes.login);
         } else if (state is AuthVerificationEmailSent) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم إرسال رسالة التحقق'),
+            SnackBar(
+              content: Text(l10n.auth_verifyEmailResend),
               backgroundColor: AppColors.success,
             ),
           );
@@ -92,8 +98,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
+              _checkTimer?.cancel();
               context.read<AuthBloc>().add(const AuthSignOutRequested());
-              context.go(Routes.login);
             },
           ),
         ),
@@ -116,7 +122,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
                     // Title
                     Text(
-                      'تحقق من بريدك الإلكتروني',
+                      l10n.auth_verifyEmailCheck,
                       style: AppTypography.displaySmall.copyWith(
                         color: context.colors.textPrimary,
                       ),
@@ -126,7 +132,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
                     // Description
                     Text(
-                      'أرسلنا رسالة تحقق إلى',
+                      l10n.auth_verifyEmailSent,
                       style: AppTypography.bodyLarge.copyWith(
                         color: context.colors.textSecondary,
                       ),
@@ -142,7 +148,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      'يرجى النقر على الرابط في الرسالة للتحقق من حسابك',
+                      l10n.auth_verifyEmailMessage,
                       style: AppTypography.bodyMedium.copyWith(
                         color: context.colors.textSecondary,
                       ),
@@ -163,7 +169,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
-                          'في انتظار التحقق...',
+                          l10n.auth_verifyEmailWaiting,
                           style: AppTypography.bodySmall.copyWith(
                             color: context.colors.textSecondary,
                           ),
@@ -175,8 +181,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     // Resend button
                     RibalButton(
                       text: _canResend
-                          ? 'إعادة إرسال الرسالة'
-                          : 'إعادة الإرسال بعد $_resendCooldown ثانية',
+                          ? l10n.auth_verifyEmailResend
+                          : '${l10n.auth_verifyEmailResendCooldown} $_resendCooldown ${l10n.auth_verifyEmailSeconds}',
                       onPressed: _canResend ? _handleResendEmail : null,
                       variant: RibalButtonVariant.outline,
                     ),
@@ -185,10 +191,10 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     // Back to login
                     TextButton(
                       onPressed: () {
+                        _checkTimer?.cancel();
                         context.read<AuthBloc>().add(const AuthSignOutRequested());
-                        context.go(Routes.login);
                       },
-                      child: const Text('العودة لتسجيل الدخول'),
+                      child: Text(l10n.auth_verifyEmailBack),
                     ),
                   ],
                 ),

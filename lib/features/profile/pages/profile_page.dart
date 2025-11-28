@@ -16,24 +16,58 @@ import '../../../core/widgets/avatar/ribal_avatar.dart';
 import '../../../core/widgets/buttons/ribal_button.dart';
 import '../../../core/widgets/inputs/ribal_text_field.dart';
 import '../../../data/models/user_model.dart';
+import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/bloc/auth_bloc.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final String? userId; // Optional: if provided, show that user's profile (admin only)
+
+  const ProfilePage({super.key, this.userId});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  Future<void> _onRefresh() async {
-    // Trigger auth check to reload user data
-    context.read<AuthBloc>().add(const AuthCheckRequested());
+  UserModel? _profileUser;
+  bool _isLoading = false;
 
-    // Wait a bit for the state to update
-    await Future.delayed(const Duration(milliseconds: 500));
+  @override
+  void initState() {
+    super.initState();
+    if (widget.userId != null) {
+      _loadProfileUser();
+    }
+  }
+
+  Future<void> _loadProfileUser() async {
+    setState(() => _isLoading = true);
+    try {
+      final user = await getIt<UserRepository>().getUserById(widget.userId!);
+      if (mounted) {
+        setState(() {
+          _profileUser = user;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    if (widget.userId != null) {
+      await _loadProfileUser();
+    } else {
+      // Trigger auth check to reload user data
+      context.read<AuthBloc>().add(const AuthCheckRequested());
+      // Wait a bit for the state to update
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
   }
 
   @override
@@ -49,7 +83,16 @@ class _ProfilePageState extends State<ProfilePage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final user = state.user;
+          // If viewing another user's profile, use loaded profile user
+          // Otherwise, use current authenticated user
+          final user = widget.userId != null ? _profileUser : state.user;
+
+          if (user == null || _isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final currentUser = state.user;
+          final isViewingOwnProfile = currentUser.id == user.id;
 
           return RefreshIndicator(
             onRefresh: _onRefresh,
@@ -99,23 +142,62 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.xs),
 
-                // Info card
-                _buildInfoCard(context, user),
-                const SizedBox(height: AppSpacing.lg),
+                // Email
+                Center(
+                  child: Text(
+                    user.email,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: context.colors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
 
                 // Settings section
                 _buildSettingsSection(context, user),
                 const SizedBox(height: AppSpacing.xl),
 
-                // Logout button
-                RibalButton(
-                  text: l10n.profile_logout,
-                  onPressed: () => _handleLogout(context),
-                  variant: RibalButtonVariant.danger,
-                  icon: Icons.logout,
-                ),
+                // Logout button (only on own profile)
+                if (isViewingOwnProfile)
+                  RibalButton(
+                    text: l10n.profile_logout,
+                    onPressed: () => _handleLogout(context),
+                    variant: RibalButtonVariant.danger,
+                    icon: Icons.logout,
+                  ),
+
+                // Fake delete account button (only on own profile)
+                if (isViewingOwnProfile) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => _handleFakeDeleteAccount(context),
+                      child: Text(
+                        l10n.profile_deleteAccount,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: context.colors.textTertiary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Delete account button (admin viewing other users only)
+                if (currentUser.role == UserRole.admin && !isViewingOwnProfile)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: isViewingOwnProfile ? AppSpacing.md : 0,
+                    ),
+                    child: RibalButton(
+                      text: l10n.profile_deleteAccount,
+                      onPressed: () => _handleDeleteUser(context, user),
+                      variant: RibalButtonVariant.outline,
+                      icon: Icons.delete_forever,
+                    ),
+                  ),
               ],
             ),
           );
@@ -136,77 +218,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Widget _buildInfoCard(BuildContext context, UserModel user) {
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow(
-            context: context,
-            icon: Icons.person_outline,
-            label: l10n.profile_fullName,
-            value: user.fullName,
-          ),
-          Divider(height: 1, color: context.colors.divider),
-          _buildInfoRow(
-            context: context,
-            icon: Icons.email_outlined,
-            label: l10n.profile_email,
-            value: user.email,
-          ),
-          Divider(height: 1, color: context.colors.divider),
-          _buildInfoRow(
-            context: context,
-            icon: Icons.badge_outlined,
-            label: l10n.profile_role,
-            value: _getRoleDisplayName(context, user.role),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Padding(
-      padding: AppSpacing.cardPadding,
-      child: Row(
-        children: [
-          Icon(icon, color: context.colors.textSecondary, size: AppSpacing.iconLg),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: AppTypography.titleMedium.copyWith(
-                    color: context.colors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSettingsSection(BuildContext context, UserModel user) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
@@ -219,20 +230,6 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _buildSettingsButton(
             context: context,
-            icon: Icons.dark_mode_outlined,
-            label: l10n.profile_darkMode,
-            onTap: () => _showDarkModeSheet(context),
-          ),
-          Divider(height: 1, color: context.colors.divider),
-          _buildSettingsButton(
-            context: context,
-            icon: Icons.language_outlined,
-            label: l10n.profile_language,
-            onTap: () => _showLanguageSheet(context),
-          ),
-          Divider(height: 1, color: context.colors.divider),
-          _buildSettingsButton(
-            context: context,
             icon: Icons.edit_outlined,
             label: l10n.profile_editProfile,
             onTap: () => _showEditProfileSheet(context, user),
@@ -243,6 +240,20 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.lock_outline,
             label: l10n.profile_changePassword,
             onTap: () => _showChangePasswordSheet(context),
+          ),
+          Divider(height: 1, color: context.colors.divider),
+          _buildSettingsButton(
+            context: context,
+            icon: Icons.dark_mode_outlined,
+            label: l10n.profile_darkMode,
+            onTap: () => _showDarkModeSheet(context),
+          ),
+          Divider(height: 1, color: context.colors.divider),
+          _buildSettingsButton(
+            context: context,
+            icon: Icons.language_outlined,
+            label: l10n.profile_language,
+            onTap: () => _showLanguageSheet(context),
           ),
         ],
       ),
@@ -407,6 +418,121 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  void _handleFakeDeleteAccount(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    // Capture the bloc reference before showing dialog
+    final authBloc = context.read<AuthBloc>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => BlocListener<AuthBloc, AuthState>(
+        bloc: authBloc,
+        listener: (_, state) {
+          if (state is AuthUnauthenticated) {
+            // Close dialog if still open
+            if (Navigator.of(dialogContext).canPop()) {
+              Navigator.of(dialogContext).pop();
+            }
+            // Navigate to login
+            context.go(Routes.login);
+          }
+        },
+        child: AlertDialog(
+          title: Text(l10n.profile_deleteAccount),
+          content: Text(l10n.profile_deleteAccountConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.common_cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                // Fake delete - just sign out instead
+                authBloc.add(const AuthSignOutRequested());
+              },
+              child: Text(
+                l10n.common_delete,
+                style: const TextStyle(color: AppColors.error),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleDeleteUser(BuildContext context, UserModel targetUser) async {
+    final l10n = AppLocalizations.of(context)!;
+    final state = context.read<AuthBloc>().state;
+
+    if (state is! AuthAuthenticated) return;
+
+    final currentUser = state.user;
+
+    // Double-check: Prevent admin from deleting their own account
+    if (currentUser.id == targetUser.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.common_error),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.profile_deleteAccount),
+        content: Text(l10n.profile_deleteAccountConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.common_cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              l10n.common_delete,
+              style: const TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        // Delete user from Firestore
+        await getIt<UserRepository>().deleteUser(targetUser.id);
+
+        if (context.mounted) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.profile_accountDeleted),
+              backgroundColor: AppColors.success,
+            ),
+          );
+
+          // Navigate back
+          if (context.canPop()) {
+            context.pop();
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${l10n.common_error}: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -876,7 +1002,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                                       height: 16,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Colors.white,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        backgroundColor: Colors.white38,
                                       ),
                                     )
                                   : const Icon(

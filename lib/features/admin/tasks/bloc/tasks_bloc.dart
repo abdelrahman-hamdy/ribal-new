@@ -96,6 +96,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
         selectedGroupIds: event.selectedGroupIds,
         selectedUserIds: event.selectedUserIds,
         createdBy: event.createdBy,
+        // Denormalized creator info (avoids extra user fetch when displaying)
+        creatorName: event.creatorName,
+        creatorEmail: event.creatorEmail,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

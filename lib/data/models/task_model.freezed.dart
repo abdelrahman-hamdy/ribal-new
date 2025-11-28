@@ -32,7 +32,10 @@ mixin _$TaskModel {
   AssigneeSelection get assigneeSelection => throw _privateConstructorUsedError;
   List<String> get selectedGroupIds => throw _privateConstructorUsedError;
   List<String> get selectedUserIds => throw _privateConstructorUsedError;
-  String get createdBy => throw _privateConstructorUsedError;
+  String get createdBy =>
+      throw _privateConstructorUsedError; // Denormalized fields for performance (avoid extra user fetch)
+  String? get creatorName => throw _privateConstructorUsedError;
+  String? get creatorEmail => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
 
@@ -65,6 +68,8 @@ abstract class $TaskModelCopyWith<$Res> {
       List<String> selectedGroupIds,
       List<String> selectedUserIds,
       String createdBy,
+      String? creatorName,
+      String? creatorEmail,
       DateTime createdAt,
       DateTime updatedAt});
 }
@@ -97,6 +102,8 @@ class _$TaskModelCopyWithImpl<$Res, $Val extends TaskModel>
     Object? selectedGroupIds = null,
     Object? selectedUserIds = null,
     Object? createdBy = null,
+    Object? creatorName = freezed,
+    Object? creatorEmail = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -153,6 +160,14 @@ class _$TaskModelCopyWithImpl<$Res, $Val extends TaskModel>
           ? _value.createdBy
           : createdBy // ignore: cast_nullable_to_non_nullable
               as String,
+      creatorName: freezed == creatorName
+          ? _value.creatorName
+          : creatorName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      creatorEmail: freezed == creatorEmail
+          ? _value.creatorEmail
+          : creatorEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -187,6 +202,8 @@ abstract class _$$TaskModelImplCopyWith<$Res>
       List<String> selectedGroupIds,
       List<String> selectedUserIds,
       String createdBy,
+      String? creatorName,
+      String? creatorEmail,
       DateTime createdAt,
       DateTime updatedAt});
 }
@@ -217,6 +234,8 @@ class __$$TaskModelImplCopyWithImpl<$Res>
     Object? selectedGroupIds = null,
     Object? selectedUserIds = null,
     Object? createdBy = null,
+    Object? creatorName = freezed,
+    Object? creatorEmail = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -273,6 +292,14 @@ class __$$TaskModelImplCopyWithImpl<$Res>
           ? _value.createdBy
           : createdBy // ignore: cast_nullable_to_non_nullable
               as String,
+      creatorName: freezed == creatorName
+          ? _value.creatorName
+          : creatorName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      creatorEmail: freezed == creatorEmail
+          ? _value.creatorEmail
+          : creatorEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -302,6 +329,8 @@ class _$TaskModelImpl extends _TaskModel {
       final List<String> selectedGroupIds = const [],
       final List<String> selectedUserIds = const [],
       required this.createdBy,
+      this.creatorName,
+      this.creatorEmail,
       required this.createdAt,
       required this.updatedAt})
       : _labelIds = labelIds,
@@ -364,6 +393,11 @@ class _$TaskModelImpl extends _TaskModel {
 
   @override
   final String createdBy;
+// Denormalized fields for performance (avoid extra user fetch)
+  @override
+  final String? creatorName;
+  @override
+  final String? creatorEmail;
   @override
   final DateTime createdAt;
   @override
@@ -371,7 +405,7 @@ class _$TaskModelImpl extends _TaskModel {
 
   @override
   String toString() {
-    return 'TaskModel(id: $id, title: $title, description: $description, labelIds: $labelIds, attachmentUrl: $attachmentUrl, isRecurring: $isRecurring, isActive: $isActive, isArchived: $isArchived, attachmentRequired: $attachmentRequired, assigneeSelection: $assigneeSelection, selectedGroupIds: $selectedGroupIds, selectedUserIds: $selectedUserIds, createdBy: $createdBy, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'TaskModel(id: $id, title: $title, description: $description, labelIds: $labelIds, attachmentUrl: $attachmentUrl, isRecurring: $isRecurring, isActive: $isActive, isArchived: $isArchived, attachmentRequired: $attachmentRequired, assigneeSelection: $assigneeSelection, selectedGroupIds: $selectedGroupIds, selectedUserIds: $selectedUserIds, createdBy: $createdBy, creatorName: $creatorName, creatorEmail: $creatorEmail, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -402,6 +436,10 @@ class _$TaskModelImpl extends _TaskModel {
                 .equals(other._selectedUserIds, _selectedUserIds) &&
             (identical(other.createdBy, createdBy) ||
                 other.createdBy == createdBy) &&
+            (identical(other.creatorName, creatorName) ||
+                other.creatorName == creatorName) &&
+            (identical(other.creatorEmail, creatorEmail) ||
+                other.creatorEmail == creatorEmail) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -425,6 +463,8 @@ class _$TaskModelImpl extends _TaskModel {
       const DeepCollectionEquality().hash(_selectedGroupIds),
       const DeepCollectionEquality().hash(_selectedUserIds),
       createdBy,
+      creatorName,
+      creatorEmail,
       createdAt,
       updatedAt);
 
@@ -459,6 +499,8 @@ abstract class _TaskModel extends TaskModel {
       final List<String> selectedGroupIds,
       final List<String> selectedUserIds,
       required final String createdBy,
+      final String? creatorName,
+      final String? creatorEmail,
       required final DateTime createdAt,
       required final DateTime updatedAt}) = _$TaskModelImpl;
   const _TaskModel._() : super._();
@@ -491,7 +533,12 @@ abstract class _TaskModel extends TaskModel {
   @override
   List<String> get selectedUserIds;
   @override
-  String get createdBy;
+  String
+      get createdBy; // Denormalized fields for performance (avoid extra user fetch)
+  @override
+  String? get creatorName;
+  @override
+  String? get creatorEmail;
   @override
   DateTime get createdAt;
   @override

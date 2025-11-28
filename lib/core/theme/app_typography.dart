@@ -204,9 +204,10 @@ abstract final class AppTypography {
 
   /// Input hint style
   static TextStyle get inputHint => GoogleFonts.tajawal(
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.w400,
         height: 1.5,
+        letterSpacing: 0,
         color: AppColors.textTertiary,
       );
 

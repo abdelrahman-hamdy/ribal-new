@@ -49,7 +49,7 @@ class TodayStatsGrid extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _StatBox(
-                title: l10n.assignment_myAssignments,
+                title: l10n.statistics_totalAssignments,
                 count: totalAssignmentsCount,
                 color: AppColors.roleAdmin, // Purple
                 isLoading: isLoading,
@@ -115,9 +115,10 @@ class _StatBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 75,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.smd,
+        vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
         color: context.colors.surface,
@@ -133,6 +134,9 @@ class _StatBox extends StatelessWidget {
             style: AppTypography.labelSmall.copyWith(
               color: context.colors.textSecondary,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: AppSpacing.xxs),
           AnimatedStatCount(
@@ -161,9 +165,10 @@ class _ViewStatsButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        height: 75,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
-          vertical: AppSpacing.smd,
+          vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
           color: context.colors.primarySurface,
@@ -171,6 +176,8 @@ class _ViewStatsButton extends StatelessWidget {
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Centered content
             Expanded(
@@ -190,6 +197,7 @@ class _ViewStatsButton extends StatelessWidget {
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

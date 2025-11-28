@@ -207,6 +207,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profile_logoutConfirm => 'هل أنت متأكد من تسجيل الخروج؟';
 
   @override
+  String get profile_deleteAccount => 'حذف الحساب';
+
+  @override
+  String get profile_deleteAccountConfirm =>
+      'هل أنت متأكد من حذف هذا الحساب؟ هذا الإجراء لا يمكن التراجع عنه!';
+
+  @override
+  String get profile_accountDeleted => 'تم حذف الحساب بنجاح';
+
+  @override
   String get profile_changesSaved => 'تم حفظ التغييرات بنجاح';
 
   @override
@@ -276,7 +286,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_email => 'البريد الإلكتروني';
 
   @override
-  String get auth_emailHint => 'أدخل بريدك الإلكتروني';
+  String get auth_emailHint => 'user@example.com';
 
   @override
   String get auth_emailRequired => 'البريد الإلكتروني مطلوب';
@@ -288,7 +298,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_password => 'كلمة المرور';
 
   @override
-  String get auth_passwordHint => 'أدخل كلمة المرور';
+  String get auth_passwordHint => '8 أحرف على الأقل';
 
   @override
   String get auth_passwordRequired => 'كلمة المرور مطلوبة';
@@ -313,7 +323,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_passwordNew => 'كلمة المرور الجديدة';
 
   @override
-  String get auth_passwordNewHint => 'أدخل كلمة المرور الجديدة';
+  String get auth_passwordNewHint => '8 أحرف على الأقل';
 
   @override
   String get auth_passwordNewRequired => 'كلمة المرور الجديدة مطلوبة';
@@ -322,7 +332,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_passwordConfirm => 'تأكيد كلمة المرور';
 
   @override
-  String get auth_passwordConfirmHint => 'أعد إدخال كلمة المرور الجديدة';
+  String get auth_passwordConfirmHint => 'أعد إدخال كلمة المرور';
 
   @override
   String get auth_passwordConfirmRequired => 'تأكيد كلمة المرور مطلوب';
@@ -334,7 +344,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_firstName => 'الاسم الأول';
 
   @override
-  String get auth_firstNameHint => 'أدخل الاسم الأول';
+  String get auth_firstNameHint => 'أحمد';
 
   @override
   String get auth_firstNameRequired => 'الاسم الأول مطلوب';
@@ -343,7 +353,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_lastName => 'اسم العائلة';
 
   @override
-  String get auth_lastNameHint => 'أدخل اسم العائلة';
+  String get auth_lastNameHint => 'محمد';
 
   @override
   String get auth_lastNameRequired => 'اسم العائلة مطلوب';
@@ -352,7 +362,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_invitationCode => 'كود الدعوة';
 
   @override
-  String get auth_invitationCodeHint => 'أدخل كود الدعوة';
+  String get auth_invitationCodeHint => 'ABC-123';
 
   @override
   String get auth_invitationCodeRequired => 'كود الدعوة مطلوب';
@@ -393,6 +403,68 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get auth_forgotPassword => 'نسيت كلمة المرور؟';
+
+  @override
+  String get auth_forgotPasswordTitle => 'استعادة كلمة المرور';
+
+  @override
+  String get auth_forgotPasswordSubtitle =>
+      'أدخل بريدك الإلكتروني لإرسال رابط إعادة تعيين كلمة المرور';
+
+  @override
+  String get auth_forgotPasswordButton => 'إرسال رابط الاستعادة';
+
+  @override
+  String get auth_forgotPasswordSuccess =>
+      'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني';
+
+  @override
+  String get auth_forgotPasswordEmailSent => 'تحقق من بريدك الإلكتروني';
+
+  @override
+  String get auth_forgotPasswordBackToLogin => 'العودة لتسجيل الدخول';
+
+  @override
+  String get auth_checkingWhitelist => 'جاري التحقق من البريد الإلكتروني...';
+
+  @override
+  String get auth_whitelistNotice =>
+      'البريد الإلكتروني غير مسجل في القائمة البيضاء. يرجى إدخال كود الدعوة.';
+
+  @override
+  String get auth_error_userNotFound => 'لا يوجد حساب بهذا البريد الإلكتروني';
+
+  @override
+  String get auth_error_wrongPassword => 'كلمة المرور غير صحيحة';
+
+  @override
+  String get auth_error_emailInUse => 'البريد الإلكتروني مستخدم بالفعل';
+
+  @override
+  String get auth_error_weakPassword => 'كلمة المرور ضعيفة جداً';
+
+  @override
+  String get auth_error_invalidEmail => 'البريد الإلكتروني غير صالح';
+
+  @override
+  String get auth_error_tooManyRequests =>
+      'تم تجاوز عدد المحاولات، حاول لاحقاً';
+
+  @override
+  String get auth_error_network => 'خطأ في الاتصال بالإنترنت';
+
+  @override
+  String get auth_error_invalidInvitation => 'كود الدعوة غير صالح';
+
+  @override
+  String get auth_error_notWhitelisted =>
+      'البريد الإلكتروني غير مسجل في القائمة البيضاء';
+
+  @override
+  String get auth_error_loginFailed => 'فشل تسجيل الدخول';
+
+  @override
+  String get auth_error_unknown => 'حدث خطأ غير متوقع';
 
   @override
   String get nav_home => 'الرئيسية';
@@ -1444,6 +1516,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statistics_totalTasks => 'إجمالي المهام';
 
   @override
+  String get statistics_totalAssignments => 'التكليفات';
+
+  @override
   String get statistics_completed => 'المكتملة';
 
   @override
@@ -1892,4 +1967,42 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get manager_canCreateOnlyWithGroups =>
       'يمكنك إنشاء مهام فقط عندما يتم تعيين مجموعة واحدة على الأقل لك، أو عند منحك صلاحية التعيين لجميع الموظفين.';
+
+  @override
+  String get manager_myTasks => 'مهامي';
+
+  @override
+  String get manager_taskManagement => 'إدارة المهام';
+
+  @override
+  String get notes_writeReply => 'اكتب ردك...';
+
+  @override
+  String notes_notesOf(String name) {
+    return 'ملاحظات $name';
+  }
+
+  @override
+  String get notes_notesSingular => 'ملاحظة';
+
+  @override
+  String get notes_noNotesYet => 'لا توجد ملاحظات بعد';
+
+  @override
+  String get notes_startConversation => 'ابدأ المحادثة بإرسال ملاحظة';
+
+  @override
+  String get notes_header => 'الملاحظات';
+
+  @override
+  String get date_formatAM => 'صباحاً';
+
+  @override
+  String get date_formatPM => 'مساءً';
+
+  @override
+  String get task_noLabelsAvailableShort => 'لا توجد تصنيفات متاحة';
+
+  @override
+  String get task_noGroupsAvailableShort => 'لا توجد مجموعات متاحة';
 }

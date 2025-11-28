@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -164,9 +165,10 @@ class RibalEmailField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return RibalTextField(
-      label: 'البريد الإلكتروني',
-      hint: 'أدخل بريدك الإلكتروني',
+      label: l10n.auth_email,
+      hint: l10n.auth_emailHint,
       controller: controller,
       focusNode: focusNode,
       errorText: errorText,
@@ -175,18 +177,19 @@ class RibalEmailField extends StatelessWidget {
       onChanged: onChanged,
       onEditingComplete: onEditingComplete,
       prefixIcon: Icons.email_outlined,
-      validator: validator ?? _defaultEmailValidator,
+      validator: validator ?? (value) => _defaultEmailValidator(context, value),
       autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }
 
-  String? _defaultEmailValidator(String? value) {
+  String? _defaultEmailValidator(BuildContext context, String? value) {
+    final l10n = AppLocalizations.of(context)!;
     if (value == null || value.isEmpty) {
-      return 'البريد الإلكتروني مطلوب';
+      return l10n.auth_emailRequired;
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
-      return 'البريد الإلكتروني غير صالح';
+      return l10n.auth_emailInvalid;
     }
     return null;
   }
@@ -219,9 +222,10 @@ class RibalPasswordField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return RibalTextField(
-      label: label ?? 'كلمة المرور',
-      hint: hint ?? 'أدخل كلمة المرور',
+      label: label ?? l10n.auth_password,
+      hint: hint ?? l10n.auth_passwordHint,
       controller: controller,
       focusNode: focusNode,
       errorText: errorText,
@@ -231,17 +235,18 @@ class RibalPasswordField extends StatelessWidget {
       onChanged: onChanged,
       onEditingComplete: onEditingComplete,
       prefixIcon: Icons.lock_outline,
-      validator: validator ?? _defaultPasswordValidator,
+      validator: validator ?? (value) => _defaultPasswordValidator(context, value),
       autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }
 
-  String? _defaultPasswordValidator(String? value) {
+  String? _defaultPasswordValidator(BuildContext context, String? value) {
+    final l10n = AppLocalizations.of(context)!;
     if (value == null || value.isEmpty) {
-      return 'كلمة المرور مطلوبة';
+      return l10n.auth_passwordRequired;
     }
     if (value.length < 8) {
-      return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+      return l10n.auth_passwordMinLength;
     }
     return null;
   }

@@ -1,7 +1,7 @@
 name: ribal
 description: Task Management App for Mid-Size Companies
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.10+12
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -29,6 +29,9 @@ dependencies:
   cloud_firestore: ^5.5.0
   cloud_functions: ^5.1.6
   firebase_messaging: ^15.1.6
+
+  # Local Notifications
+  flutter_local_notifications: ^18.0.1
 
   # Cloudinary (Storage)
   cloudinary_flutter: ^1.3.0
@@ -81,3 +84,18 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - shorebird.yaml
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/rbal-logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/rbal-logo.png"
+  remove_alpha_ios: true
+
+# Flutter Native Splash configuration (optional - configure if needed)
+# flutter_native_splash:
+#   color: "#FFFFFF"
+#   image: "assets/images/rbal-logo.png"

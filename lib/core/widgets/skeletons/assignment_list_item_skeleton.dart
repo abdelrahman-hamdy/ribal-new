@@ -77,7 +77,7 @@ class AssignmentListSkeletonList extends StatelessWidget {
 
   const AssignmentListSkeletonList({
     super.key,
-    this.itemCount = 4,
+    this.itemCount = 5,
   });
 
   @override

@@ -17,6 +17,8 @@ class WhitelistModel with _$WhitelistModel {
     required UserRole role,
     required String createdBy,
     required DateTime createdAt,
+    @Default(false) bool isRegistered,
+    DateTime? registeredAt,
   }) = _WhitelistModel;
 
   factory WhitelistModel.fromJson(Map<String, dynamic> json) =>
@@ -29,6 +31,10 @@ class WhitelistModel with _$WhitelistModel {
       'id': doc.id,
       ...data,
       'createdAt': (data['createdAt'] as Timestamp).toDate().toIso8601String(),
+      'isRegistered': data['isRegistered'] ?? false,
+      'registeredAt': data['registeredAt'] != null
+          ? (data['registeredAt'] as Timestamp).toDate().toIso8601String()
+          : null,
     });
   }
 
@@ -39,6 +45,8 @@ class WhitelistModel with _$WhitelistModel {
       'role': role.name,
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
+      'isRegistered': isRegistered,
+      'registeredAt': registeredAt != null ? Timestamp.fromDate(registeredAt!) : null,
     };
   }
 }

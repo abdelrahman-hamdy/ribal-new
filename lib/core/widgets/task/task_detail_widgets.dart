@@ -101,17 +101,6 @@ class TaskCreatorRow extends StatelessWidget {
 
   const TaskCreatorRow({super.key, required this.creator});
 
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return AppColors.roleAdmin;
-      case UserRole.manager:
-        return AppColors.roleManager;
-      case UserRole.employee:
-        return AppColors.roleEmployee;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -138,8 +127,6 @@ class TaskCreatorRow extends StatelessWidget {
       );
     }
 
-    final roleColor = _getRoleColor(creator!.role);
-
     return Row(
       children: [
         Text(
@@ -149,27 +136,16 @@ class TaskCreatorRow extends StatelessWidget {
               ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        CircleAvatar(
-          radius: 10,
-          backgroundColor: roleColor.withValues(alpha: 0.2),
-          backgroundImage:
-              creator!.avatarUrl != null ? NetworkImage(creator!.avatarUrl!) : null,
-          child: creator!.avatarUrl == null
-              ? Text(
-                  creator!.initials,
-                  style: TextStyle(
-                    color: roleColor,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
+        // Using unified RibalAvatar
+        RibalAvatar(
+          user: creator!,
+          size: RibalAvatarSize.xs,
         ),
         const SizedBox(width: AppSpacing.xs),
         Text(
           creator!.fullName,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: roleColor,
+                color: context.colors.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -545,8 +521,8 @@ class TaskAssigneesSection extends StatelessWidget {
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+              itemCount: 5,
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) => const TaskAssigneeCardSkeleton(),
             ),
           )
@@ -561,7 +537,7 @@ class TaskAssigneesSection extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: state.assignees.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
             itemBuilder: (context, index) {
               final assignee = state.assignees[index];
               return TaskAssigneeCard(
@@ -779,11 +755,16 @@ class TaskAssigneeCard extends StatelessWidget {
 
   void _showNotesDialog(BuildContext context, UserModel? user) {
     final l10n = AppLocalizations.of(context)!;
+    // Ensure assignee name is not empty
+    final assigneeName = user?.fullName.trim() ?? '';
+    final displayName = assigneeName.isEmpty ? l10n.user_unknown : assigneeName;
+
     NotesDialog.show(
       context: context,
       assignmentId: assignee.assignment.id,
       taskId: taskId!,
-      assigneeName: user?.fullName ?? l10n.user_unknown,
+      assigneeName: displayName,
+      assigneeRole: user?.role ?? UserRole.employee,
       currentUserId: (context.read<AuthBloc>().state as AuthAuthenticated).user.id,
       currentUserName: (context.read<AuthBloc>().state as AuthAuthenticated).user.fullName,
       currentUserRole: (context.read<AuthBloc>().state as AuthAuthenticated).user.role,

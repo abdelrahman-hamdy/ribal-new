@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/ksa_timezone.dart';
 import '../../utils/time_formatter.dart';
+import '../avatar/ribal_avatar.dart';
 
 /// Status badge widget for assignment status
 class AssignmentStatusBadge extends StatelessWidget {
@@ -118,17 +119,6 @@ class AssignmentCreatorRow extends StatelessWidget {
 
   const AssignmentCreatorRow({super.key, required this.creator});
 
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return AppColors.roleAdmin;
-      case UserRole.manager:
-        return AppColors.roleManager;
-      case UserRole.employee:
-        return AppColors.roleEmployee;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -155,8 +145,6 @@ class AssignmentCreatorRow extends StatelessWidget {
       );
     }
 
-    final roleColor = _getRoleColor(creator!.role);
-
     return Row(
       children: [
         Text(
@@ -166,27 +154,16 @@ class AssignmentCreatorRow extends StatelessWidget {
               ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        CircleAvatar(
-          radius: 10,
-          backgroundColor: roleColor.withValues(alpha: 0.2),
-          backgroundImage:
-              creator!.avatarUrl != null ? NetworkImage(creator!.avatarUrl!) : null,
-          child: creator!.avatarUrl == null
-              ? Text(
-                  creator!.initials,
-                  style: TextStyle(
-                    color: roleColor,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
+        // Using unified RibalAvatar
+        RibalAvatar(
+          user: creator!,
+          size: RibalAvatarSize.xs,
         ),
         const SizedBox(width: AppSpacing.xs),
         Text(
           creator!.fullName,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: roleColor,
+                color: context.colors.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -277,7 +254,11 @@ class AssignmentDeadlineRow extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final isOverdue = _isDeadlinePassed();
     final color = isOverdue ? AppColors.error : context.colors.textTertiary;
-    final formattedTime = TimeFormatter.formatTimeArabic(deadline);
+    final formattedTime = TimeFormatter.formatTimeArabic(
+      deadline,
+      amLabel: l10n.date_formatAM,
+      pmLabel: l10n.date_formatPM,
+    );
 
     return Row(
       children: [
@@ -393,6 +374,14 @@ class AssignmentCompletionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // Format the date with localized AM/PM
+    final dateFormatter = DateFormat('d MMMM yyyy', 'ar');
+    final timeFormatter = DateFormat('h:mm', 'ar');
+    final hour = assignment.completedAt!.hour;
+    final isPM = hour >= 12;
+    final period = isPM ? l10n.date_formatPM : l10n.date_formatAM;
+    final formattedDateTime = '${dateFormatter.format(assignment.completedAt!)} - ${timeFormatter.format(assignment.completedAt!)} $period';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -419,7 +408,7 @@ class AssignmentCompletionSection extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                '${l10n.assignment_completedAt} ${DateFormat('d MMMM yyyy - h:mm a', 'ar').format(assignment.completedAt!)}',
+                '${l10n.assignment_completedAt} $formattedDateTime',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.success,
                     ),

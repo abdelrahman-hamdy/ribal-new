@@ -175,7 +175,13 @@ class _DeadlineIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final color = isOverdue ? AppColors.error : context.colors.textTertiary;
-    final formattedTime = text != null ? TimeFormatter.formatTimeArabic(text!) : '';
+    final formattedTime = text != null
+        ? TimeFormatter.formatTimeArabic(
+            text!,
+            amLabel: l10n.date_formatAM,
+            pmLabel: l10n.date_formatPM,
+          )
+        : '';
 
     return Row(
       mainAxisSize: MainAxisSize.min,

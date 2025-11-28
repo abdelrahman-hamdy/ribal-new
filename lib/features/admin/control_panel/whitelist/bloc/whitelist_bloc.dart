@@ -24,6 +24,8 @@ class WhitelistBloc extends Bloc<WhitelistEvent, WhitelistState> {
     on<WhitelistRemoveRequested>(_onRemoveRequested);
     on<WhitelistSearchRequested>(_onSearchRequested);
     on<WhitelistSearchCleared>(_onSearchCleared);
+    on<WhitelistFilterChanged>(_onFilterChanged);
+    on<WhitelistDeleteAllRegisteredRequested>(_onDeleteAllRegisteredRequested);
   }
 
   Future<void> _onLoadRequested(
@@ -54,7 +56,7 @@ class WhitelistBloc extends Bloc<WhitelistEvent, WhitelistState> {
   ) {
     emit(state.copyWith(
       entries: event.entries,
-      filteredEntries: _applySearch(event.entries, state.searchQuery),
+      filteredEntries: _applyFilters(event.entries, state.searchQuery, state.filterStatus),
       isLoading: false,
     ));
   }
@@ -133,7 +135,7 @@ class WhitelistBloc extends Bloc<WhitelistEvent, WhitelistState> {
     final query = event.query.toLowerCase().trim();
     emit(state.copyWith(
       searchQuery: query,
-      filteredEntries: _applySearch(state.entries, query),
+      filteredEntries: _applyFilters(state.entries, query, state.filterStatus),
     ));
   }
 
@@ -143,13 +145,65 @@ class WhitelistBloc extends Bloc<WhitelistEvent, WhitelistState> {
   ) {
     emit(state.copyWith(
       searchQuery: '',
-      filteredEntries: state.entries,
+      filteredEntries: _applyFilters(state.entries, '', state.filterStatus),
     ));
   }
 
-  List<WhitelistModel> _applySearch(List<WhitelistModel> entries, String query) {
-    if (query.isEmpty) return entries;
-    return entries.where((e) => e.email.toLowerCase().contains(query)).toList();
+  void _onFilterChanged(
+    WhitelistFilterChanged event,
+    Emitter<WhitelistState> emit,
+  ) {
+    emit(state.copyWith(
+      filterStatus: event.filter,
+      filteredEntries: _applyFilters(state.entries, state.searchQuery, event.filter),
+    ));
+  }
+
+  Future<void> _onDeleteAllRegisteredRequested(
+    WhitelistDeleteAllRegisteredRequested event,
+    Emitter<WhitelistState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true, clearSuccess: true));
+
+    try {
+      final deletedCount = await _whitelistRepository.deleteAllRegisteredEmails();
+      emit(state.copyWith(
+        isLoading: false,
+        successMessage: 'تم حذف $deletedCount بريد إلكتروني مسجل',
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isLoading: false,
+        errorMessage: 'فشل في حذف البريدات المسجلة',
+      ));
+    }
+  }
+
+  List<WhitelistModel> _applyFilters(
+    List<WhitelistModel> entries,
+    String query,
+    WhitelistFilter filter,
+  ) {
+    // First apply status filter
+    var filtered = entries;
+    switch (filter) {
+      case WhitelistFilter.registered:
+        filtered = entries.where((e) => e.isRegistered).toList();
+        break;
+      case WhitelistFilter.notRegistered:
+        filtered = entries.where((e) => !e.isRegistered).toList();
+        break;
+      case WhitelistFilter.all:
+        filtered = entries;
+        break;
+    }
+
+    // Then apply search query
+    if (query.isNotEmpty) {
+      filtered = filtered.where((e) => e.email.toLowerCase().contains(query)).toList();
+    }
+
+    return filtered;
   }
 
   @override

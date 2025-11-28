@@ -549,12 +549,13 @@ class TaskRepository {
             snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList());
   }
 
-  /// Get active recurring tasks
+  /// Get active recurring tasks (limited to 50 for performance)
   Future<List<TaskModel>> getActiveRecurringTasks() async {
     final snapshot = await _firestoreService.tasksCollection
         .where(FirebaseConstants.taskIsRecurring, isEqualTo: true)
         .where(FirebaseConstants.taskIsActive, isEqualTo: true)
         .where(FirebaseConstants.taskIsArchived, isEqualTo: false)
+        .limit(50) // Safety limit for free tier
         .get();
 
     return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();

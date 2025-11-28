@@ -54,6 +54,21 @@ class WhitelistSearchCleared extends WhitelistEvent {
   const WhitelistSearchCleared();
 }
 
+/// Filter by status
+class WhitelistFilterChanged extends WhitelistEvent {
+  final WhitelistFilter filter;
+
+  const WhitelistFilterChanged({required this.filter});
+
+  @override
+  List<Object?> get props => [filter];
+}
+
+/// Delete all registered emails
+class WhitelistDeleteAllRegisteredRequested extends WhitelistEvent {
+  const WhitelistDeleteAllRegisteredRequested();
+}
+
 /// Internal: Data received from stream
 class _WhitelistDataReceived extends WhitelistEvent {
   final List<WhitelistModel> entries;

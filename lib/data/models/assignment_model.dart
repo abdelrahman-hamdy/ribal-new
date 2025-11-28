@@ -69,6 +69,9 @@ class AssignmentModel with _$AssignmentModel {
     DateTime? overdueAt,
     String? markedDoneBy,
     String? attachmentUrl,
+    // Denormalized fields for performance (avoid extra fetches)
+    String? taskTitle,
+    String? userName,
     required DateTime scheduledDate,
     required DateTime createdAt,
   }) = _AssignmentModel;
@@ -92,6 +95,9 @@ class AssignmentModel with _$AssignmentModel {
     return AssignmentModel.fromJson({
       'id': doc.id,
       ...data,
+      // Denormalized fields (may be null for old documents)
+      'taskTitle': data['taskTitle'],
+      'userName': data['userName'],
       'scheduledDate':
           (data['scheduledDate'] as Timestamp).toDate().toIso8601String(),
       'createdAt': (data['createdAt'] as Timestamp).toDate().toIso8601String(),
@@ -137,6 +143,9 @@ class AssignmentModel with _$AssignmentModel {
       'overdueAt': overdueAt != null ? Timestamp.fromDate(overdueAt!) : null,
       'markedDoneBy': markedDoneBy,
       'attachmentUrl': attachmentUrl,
+      // Denormalized fields
+      'taskTitle': taskTitle,
+      'userName': userName,
       'scheduledDate': Timestamp.fromDate(scheduledDate),
       'createdAt': Timestamp.fromDate(createdAt),
     };

@@ -110,38 +110,54 @@ class NotificationRepository {
 
   /// Mark all notifications as seen (when user opens notifications panel)
   /// This resets the badge count but keeps individual items highlighted
+  /// Processes in batches of 50 for performance and free tier limits
   Future<void> markAllAsSeen(String userId) async {
-    final snapshot = await _firestoreService.notificationsCollection
-        .where(FirebaseConstants.notificationUserId, isEqualTo: userId)
-        .where(FirebaseConstants.notificationIsSeen, isEqualTo: false)
-        .get();
+    // Process in batches to avoid fetching all documents at once
+    while (true) {
+      final snapshot = await _firestoreService.notificationsCollection
+          .where(FirebaseConstants.notificationUserId, isEqualTo: userId)
+          .where(FirebaseConstants.notificationIsSeen, isEqualTo: false)
+          .limit(50) // Process 50 at a time for free tier
+          .get();
 
-    if (snapshot.docs.isEmpty) return;
+      if (snapshot.docs.isEmpty) break;
 
-    final batch = _firestoreService.batch;
-    for (final doc in snapshot.docs) {
-      batch.update(doc.reference, {FirebaseConstants.notificationIsSeen: true});
+      final batch = _firestoreService.batch;
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {FirebaseConstants.notificationIsSeen: true});
+      }
+      await batch.commit();
+
+      // If we got less than 50, we're done
+      if (snapshot.docs.length < 50) break;
     }
-    await batch.commit();
   }
 
   /// Mark all notifications as read for user
+  /// Processes in batches of 50 for performance and free tier limits
   Future<void> markAllAsRead(String userId) async {
-    final snapshot = await _firestoreService.notificationsCollection
-        .where(FirebaseConstants.notificationUserId, isEqualTo: userId)
-        .where(FirebaseConstants.notificationIsRead, isEqualTo: false)
-        .get();
+    // Process in batches to avoid fetching all documents at once
+    while (true) {
+      final snapshot = await _firestoreService.notificationsCollection
+          .where(FirebaseConstants.notificationUserId, isEqualTo: userId)
+          .where(FirebaseConstants.notificationIsRead, isEqualTo: false)
+          .limit(50) // Process 50 at a time for free tier
+          .get();
 
-    if (snapshot.docs.isEmpty) return;
+      if (snapshot.docs.isEmpty) break;
 
-    final batch = _firestoreService.batch;
-    for (final doc in snapshot.docs) {
-      batch.update(doc.reference, {
-        FirebaseConstants.notificationIsRead: true,
-        FirebaseConstants.notificationIsSeen: true,
-      });
+      final batch = _firestoreService.batch;
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {
+          FirebaseConstants.notificationIsRead: true,
+          FirebaseConstants.notificationIsSeen: true,
+        });
+      }
+      await batch.commit();
+
+      // If we got less than 50, we're done
+      if (snapshot.docs.length < 50) break;
     }
-    await batch.commit();
   }
 
   /// Delete notification
@@ -152,15 +168,25 @@ class NotificationRepository {
   }
 
   /// Delete all notifications for user
+  /// Processes in batches of 50 for performance and free tier limits
   Future<void> deleteAllNotifications(String userId) async {
-    final snapshot = await _firestoreService.notificationsCollection
-        .where(FirebaseConstants.notificationUserId, isEqualTo: userId)
-        .get();
+    // Process in batches to avoid fetching all documents at once
+    while (true) {
+      final snapshot = await _firestoreService.notificationsCollection
+          .where(FirebaseConstants.notificationUserId, isEqualTo: userId)
+          .limit(50) // Process 50 at a time for free tier
+          .get();
 
-    final batch = _firestoreService.batch;
-    for (final doc in snapshot.docs) {
-      batch.delete(doc.reference);
+      if (snapshot.docs.isEmpty) break;
+
+      final batch = _firestoreService.batch;
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      // If we got less than 50, we're done
+      if (snapshot.docs.length < 50) break;
     }
-    await batch.commit();
   }
 }

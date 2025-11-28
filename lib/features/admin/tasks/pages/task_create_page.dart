@@ -191,11 +191,9 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
         return;
       }
 
-      // Get current user ID
+      // Get current user info
       final authState = context.read<AuthBloc>().state;
-      final userId = authState is AuthAuthenticated ? authState.user.id : '';
-
-      if (userId.isEmpty) {
+      if (authState is! AuthAuthenticated) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l10n.common_errorUserNotFound),
@@ -204,6 +202,8 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
         );
         return;
       }
+
+      final user = authState.user;
 
       _isSubmitting = true;
 
@@ -215,7 +215,10 @@ class _TaskCreatePageState extends State<TaskCreatePage> {
             attachmentRequired: _attachmentRequired,
             assigneeSelection: _assigneeSelection,
             selectedGroupIds: _selectedGroupIds,
-            createdBy: userId,
+            createdBy: user.id,
+            // Denormalized creator info (avoids extra fetch when displaying)
+            creatorName: '${user.firstName} ${user.lastName}',
+            creatorEmail: user.email,
           ));
     }
   }

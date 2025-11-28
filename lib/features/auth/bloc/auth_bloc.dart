@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
@@ -9,6 +11,7 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/invitation_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/repositories/whitelist_repository.dart';
+import '../../../data/services/fcm_notification_service.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
@@ -19,6 +22,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final UserRepository _userRepository;
   final WhitelistRepository _whitelistRepository;
   final InvitationRepository _invitationRepository;
+  final FCMNotificationService _fcmService;
 
   StreamSubscription? _authSubscription;
 
@@ -27,6 +31,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     this._userRepository,
     this._whitelistRepository,
     this._invitationRepository,
+    this._fcmService,
   ) : super(const AuthInitial()) {
     on<AuthCheckRequested>(_onAuthCheckRequested);
     on<AuthSignInRequested>(_onSignInRequested);
@@ -53,13 +58,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
-      // TODO: Re-enable email verification before production
       // Check email verification
-      // if (!_authRepository.isEmailVerified) {
-      //   final user = await _authRepository.getCurrentUser();
-      //   emit(AuthEmailNotVerified(email: user?.email ?? ''));
-      //   return;
-      // }
+      if (!_authRepository.isEmailVerified) {
+        final user = await _authRepository.getCurrentUser();
+        emit(AuthEmailNotVerified(email: user?.email ?? ''));
+        return;
+      }
 
       // Get user data
       final user = await _authRepository.getCurrentUser();
@@ -73,6 +77,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // Listen to user changes
       _listenToUserChanges(user.id);
+
+      // Save FCM token for push notifications
+      _saveFCMToken(user.id);
     } catch (e) {
       emit(AuthError(message: e.toString()));
       emit(const AuthUnauthenticated());
@@ -92,20 +99,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       if (user == null) {
-        emit(const AuthError(message: 'فشل تسجيل الدخول'));
+        emit(const AuthError(message: 'login-failed'));
         emit(const AuthUnauthenticated());
         return;
       }
 
       // Check email verification
-      // TODO: Re-enable email verification before production
-      // if (!_authRepository.isEmailVerified) {
-      //   emit(AuthEmailNotVerified(email: event.email));
-      //   return;
-      // }
+      if (!_authRepository.isEmailVerified) {
+        emit(AuthEmailNotVerified(email: event.email));
+        return;
+      }
 
       emit(AuthAuthenticated(user: user));
       _listenToUserChanges(user.id);
+
+      // Save FCM token for push notifications
+      _saveFCMToken(user.id);
     } catch (e) {
       emit(AuthError(message: _getErrorMessage(e)));
       emit(const AuthUnauthenticated());
@@ -120,10 +129,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     try {
       UserRole role;
+      UserRole? whitelistRole;
 
-      // Check whitelist first
-      final whitelistRole =
-          await _whitelistRepository.getRoleForEmail(event.email);
+      // Check whitelist first - wrap in try-catch to handle Firestore errors
+      try {
+        whitelistRole = await _whitelistRepository.getRoleForEmail(event.email);
+      } catch (whitelistError) {
+        // If whitelist check fails (network, permissions, etc), treat as not whitelisted
+        whitelistRole = null;
+      }
 
       if (whitelistRole != null) {
         role = whitelistRole;
@@ -134,14 +148,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
 
         if (invitation == null) {
-          emit(const AuthError(message: 'كود الدعوة غير صالح'));
+          emit(const AuthError(message: 'invalid-invitation'));
           emit(const AuthUnauthenticated());
           return;
         }
 
         role = invitation.role;
       } else {
-        emit(const AuthError(message: 'البريد الإلكتروني غير مسجل في القائمة البيضاء'));
+        emit(const AuthError(message: 'not-whitelisted'));
         emit(const AuthUnauthenticated());
         return;
       }
@@ -161,6 +175,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           code: event.invitationCode!,
           userId: user.id,
         );
+      }
+
+      // Mark whitelist email as registered if from whitelist
+      if (whitelistRole != null) {
+        try {
+          await _whitelistRepository.markEmailAsRegistered(event.email);
+        } catch (e) {
+          // Silently fail - don't block registration for this
+          debugPrint('[AuthBloc] Failed to mark whitelist email as registered: $e');
+        }
       }
 
       emit(AuthEmailNotVerified(email: event.email));
@@ -217,6 +241,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         if (user != null) {
           emit(AuthAuthenticated(user: user));
           _listenToUserChanges(user.id);
+
+          // Save FCM token for push notifications
+          _saveFCMToken(user.id);
         } else {
           emit(const AuthUnauthenticated());
         }
@@ -321,32 +348,56 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
   }
 
+  /// Save FCM token to Firestore for push notifications
+  Future<void> _saveFCMToken(String userId) async {
+    try {
+      final token = await _fcmService.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'fcmToken': token,
+          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('✅ FCM token saved to Firestore for user: $userId');
+      }
+    } catch (e) {
+      debugPrint('❌ Error saving FCM token: $e');
+      // Don't throw - this is not critical for auth flow
+    }
+  }
+
   String _getErrorMessage(dynamic error) {
     final message = error.toString().toLowerCase();
 
-    if (message.contains('user-not-found')) {
-      return 'لا يوجد حساب بهذا البريد الإلكتروني';
+    // Firebase Auth errors
+    if (message.contains('user-not-found') || message.contains('no user')) {
+      return 'user-not-found';
     }
-    if (message.contains('wrong-password')) {
-      return 'كلمة المرور غير صحيحة';
+    if (message.contains('wrong-password') || message.contains('invalid-credential')) {
+      return 'wrong-password';
     }
-    if (message.contains('email-already-in-use')) {
-      return 'البريد الإلكتروني مستخدم بالفعل';
+    if (message.contains('email-already-in-use') || message.contains('already exists')) {
+      return 'email-in-use';
     }
-    if (message.contains('weak-password')) {
-      return 'كلمة المرور ضعيفة جداً';
+    if (message.contains('weak-password') || message.contains('password should be at least')) {
+      return 'weak-password';
     }
-    if (message.contains('invalid-email')) {
-      return 'البريد الإلكتروني غير صالح';
+    if (message.contains('invalid-email') || message.contains('badly formatted')) {
+      return 'invalid-email';
     }
-    if (message.contains('too-many-requests')) {
-      return 'تم تجاوز عدد المحاولات، حاول لاحقاً';
+    if (message.contains('too-many-requests') || message.contains('temporarily disabled')) {
+      return 'too-many-requests';
     }
-    if (message.contains('network')) {
-      return 'خطأ في الاتصال بالإنترنت';
+    if (message.contains('network') || message.contains('connection')) {
+      return 'network';
     }
 
-    return 'حدث خطأ غير متوقع';
+    // Firestore/Repository errors
+    if (message.contains('permission') || message.contains('insufficient permissions')) {
+      return 'network'; // User sees it as connection issue
+    }
+
+    // Return unknown for unhandled errors
+    return 'unknown';
   }
 
   @override

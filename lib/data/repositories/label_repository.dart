@@ -63,6 +63,7 @@ class LabelRepository {
       try {
         final snapshot = await _firestoreService.labelsCollection
             .orderBy(FirebaseConstants.labelName)
+            .limit(50) // Safety limit for free tier
             .get(const GetOptions(source: Source.cache)); // 🔥 CACHE-ONLY
 
         final labels = snapshot.docs
@@ -88,6 +89,7 @@ class LabelRepository {
 
     final snapshot = await _firestoreService.labelsCollection
         .orderBy(FirebaseConstants.labelName)
+        .limit(50) // Safety limit for free tier
         .get(const GetOptions(source: Source.server)); // 🌐 SERVER FETCH
 
     final labels = snapshot.docs
@@ -142,6 +144,7 @@ class LabelRepository {
         final snapshot = await _firestoreService.labelsCollection
             .where(FirebaseConstants.labelIsActive, isEqualTo: true)
             .orderBy(FirebaseConstants.labelName)
+            .limit(50) // Safety limit for free tier
             .get(const GetOptions(source: Source.cache));
 
         final labels = snapshot.docs
@@ -167,6 +170,7 @@ class LabelRepository {
     final snapshot = await _firestoreService.labelsCollection
         .where(FirebaseConstants.labelIsActive, isEqualTo: true)
         .orderBy(FirebaseConstants.labelName)
+        .limit(50) // Safety limit for free tier
         .get(const GetOptions(source: Source.server));
 
     final labels = snapshot.docs

@@ -30,6 +30,7 @@ import '../../data/repositories/statistics_repository.dart' as _i232;
 import '../../data/repositories/task_repository.dart' as _i515;
 import '../../data/repositories/user_repository.dart' as _i517;
 import '../../data/repositories/whitelist_repository.dart' as _i645;
+import '../../data/services/fcm_notification_service.dart' as _i699;
 import '../../data/services/firebase_auth_service.dart' as _i734;
 import '../../data/services/firestore_service.dart' as _i367;
 import '../../data/services/notification_service.dart' as _i670;
@@ -68,6 +69,8 @@ extension GetItInjectableX on _i174.GetIt {
       environmentFilter,
     );
     gh.lazySingleton<_i763.HiveCacheService>(() => _i763.HiveCacheService());
+    gh.lazySingleton<_i699.FCMNotificationService>(
+        () => _i699.FCMNotificationService());
     gh.lazySingleton<_i367.FirestoreService>(() => _i367.FirestoreService());
     gh.lazySingleton<_i734.FirebaseAuthService>(
         () => _i734.FirebaseAuthService());
@@ -125,10 +128,10 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i517.UserRepository>(),
           gh<_i420.NoteRepository>(),
         ));
-    gh.factory<_i435.ThemeBloc>(
-        () => _i435.ThemeBloc(gh<_i763.HiveCacheService>()));
     gh.factory<_i83.LocaleBloc>(
         () => _i83.LocaleBloc(gh<_i763.HiveCacheService>()));
+    gh.factory<_i435.ThemeBloc>(
+        () => _i435.ThemeBloc(gh<_i763.HiveCacheService>()));
     gh.lazySingleton<_i481.AuthRepository>(() => _i481.AuthRepository(
           gh<_i734.FirebaseAuthService>(),
           gh<_i367.FirestoreService>(),
@@ -174,15 +177,16 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.factory<_i822.WhitelistBloc>(
         () => _i822.WhitelistBloc(gh<_i645.WhitelistRepository>()));
-    gh.factory<_i533.NotesBloc>(() => _i533.NotesBloc(
-          gh<_i420.NoteRepository>(),
-          gh<_i337.NotificationRepository>(),
-        ));
     gh.factory<_i55.AuthBloc>(() => _i55.AuthBloc(
           gh<_i481.AuthRepository>(),
           gh<_i517.UserRepository>(),
           gh<_i645.WhitelistRepository>(),
           gh<_i482.InvitationRepository>(),
+          gh<_i699.FCMNotificationService>(),
+        ));
+    gh.factory<_i533.NotesBloc>(() => _i533.NotesBloc(
+          gh<_i420.NoteRepository>(),
+          gh<_i337.NotificationRepository>(),
         ));
     gh.factory<_i683.GroupsBloc>(() => _i683.GroupsBloc(
           gh<_i879.GroupRepository>(),

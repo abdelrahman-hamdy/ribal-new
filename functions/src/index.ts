@@ -4,6 +4,7 @@ import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import * as crypto from "crypto";
 
 // Cloudinary secrets (set via: firebase functions:secrets:set CLOUDINARY_API_SECRET)
@@ -41,6 +42,9 @@ interface Assignment {
   markedDoneBy?: string;
   scheduledDate: Timestamp;
   createdAt: Timestamp;
+  // Denormalized fields for performance (avoid extra fetches in app)
+  taskTitle?: string;
+  userName?: string;
 }
 
 interface Settings {
@@ -250,24 +254,51 @@ async function createAssignmentsForTask(
     existingSnapshot.docs.map((doc) => doc.data().userId)
   );
 
+  // Filter to only users who don't have assignments yet
+  const newUserIds = userIds.filter((id) => !existingUserIds.has(id));
+
+  if (newUserIds.length === 0) {
+    console.log(`All users already have assignments for task ${taskId}`);
+    return 0;
+  }
+
+  // Fetch user names for denormalization (in batches of 10)
+  const userNames: Map<string, string> = new Map();
+  for (let i = 0; i < newUserIds.length; i += 10) {
+    const batch = newUserIds.slice(i, i + 10);
+    const usersSnapshot = await db
+      .collection("users")
+      .where("__name__", "in", batch)
+      .get();
+    usersSnapshot.forEach((doc) => {
+      const data = doc.data();
+      const firstName = data.firstName || data.firstname || "";
+      const lastName = data.lastName || data.lastname || "";
+      userNames.set(doc.id, `${firstName} ${lastName}`.trim() || "Unknown");
+    });
+  }
+
   // Create assignments for users who don't have one yet
   const batch = db.batch();
   let createdCount = 0;
   const now = Timestamp.now();
+  const assignmentRefs: Array<{ ref: FirebaseFirestore.DocumentReference; userId: string }> = [];
 
-  for (const userId of userIds) {
-    if (!existingUserIds.has(userId)) {
-      const assignmentRef = db.collection("assignments").doc();
-      const assignment: Assignment = {
-        taskId,
-        userId,
-        status: "pending",
-        scheduledDate: Timestamp.fromDate(scheduledDate),
-        createdAt: now,
-      };
-      batch.set(assignmentRef, assignment);
-      createdCount++;
-    }
+  for (const userId of newUserIds) {
+    const assignmentRef = db.collection("assignments").doc();
+    const assignment: Assignment = {
+      taskId,
+      userId,
+      status: "pending",
+      scheduledDate: Timestamp.fromDate(scheduledDate),
+      createdAt: now,
+      // Denormalized fields for performance
+      taskTitle: task.title,
+      userName: userNames.get(userId) || "Unknown",
+    };
+    batch.set(assignmentRef, assignment);
+    assignmentRefs.push({ ref: assignmentRef, userId });
+    createdCount++;
   }
 
   if (createdCount > 0) {
@@ -275,6 +306,26 @@ async function createAssignmentsForTask(
     console.log(
       `Created ${createdCount} assignments for task ${taskId} on ${scheduledDate.toISOString()}`
     );
+
+    // Create notifications for task assignments (with assignment IDs)
+    const notificationBatch = db.batch();
+    for (const { ref, userId } of assignmentRefs) {
+      const notificationRef = db.collection("notifications").doc();
+      notificationBatch.set(notificationRef, {
+        userId,
+        type: "taskAssigned",
+        title: "مهمة جديدة",
+        body: `تم تعيين مهمة جديدة لك: ${task.title}`,
+        iconName: "task_add",
+        iconColor: "#2563EB",
+        deepLink: `/assignments/${ref.id}`, // Link to assignment detail
+        isSeen: false,
+        isRead: false,
+        createdAt: now,
+      });
+    }
+    await notificationBatch.commit();
+    console.log(`Created ${assignmentRefs.length} task assignment notifications`);
   }
 
   return createdCount;
@@ -902,6 +953,7 @@ export const markOverdueAssignments = onSchedule({
         : `لديك ${count} مهام متأخرة لم يتم إنجازها قبل الموعد النهائي`,
       iconName: "error",
       iconColor: "#EF4444",
+      deepLink: "/", // Link to home/today's tasks
       isSeen: false,
       isRead: false,
       createdAt: overdueTimestamp,
@@ -981,6 +1033,7 @@ export const sendDeadlineWarnings = onSchedule({
         : `لديك ${count} مهام لم تنجزها بعد. الموعد النهائي ${settings.taskDeadline}`,
       iconName: "schedule",
       iconColor: "#F59E0B",
+      deepLink: "/", // Link to home/today's tasks
       isSeen: false,
       isRead: false,
       createdAt: warningTimestamp,
@@ -990,6 +1043,97 @@ export const sendDeadlineWarnings = onSchedule({
 
   await batch.commit();
   console.log(`Sent ${notificationCount} deadline warning notifications`);
+});
+
+// ============================================
+// ASSIGNMENT STATUS CHANGE NOTIFICATIONS
+// ============================================
+
+/**
+ * Trigger: When an assignment is updated
+ * Creates notifications for status changes (completed, apologized, marked done)
+ */
+export const onAssignmentUpdated = onDocumentUpdated("assignments/{assignmentId}", async (event) => {
+  const change = event.data;
+  if (!change) {
+    console.log("No data associated with the event");
+    return;
+  }
+
+  const assignmentId = event.params.assignmentId;
+  const before = change.before.data() as Assignment;
+  const after = change.after.data() as Assignment;
+
+  // Skip if status didn't change
+  if (before.status === after.status) {
+    return;
+  }
+
+  const timestamp = Timestamp.now();
+
+  // Assignment completed
+  if (after.status === "completed" && before.status !== "completed") {
+    console.log(`Assignment ${assignmentId} completed by user ${after.userId}`);
+
+    // Get task and user details
+    const taskDoc = await db.collection("tasks").doc(after.taskId).get();
+    if (!taskDoc.exists) return;
+
+    const task = taskDoc.data() as Task;
+    const userDoc = await db.collection("users").doc(after.userId).get();
+    const userName = userDoc.exists
+      ? `${userDoc.data()?.firstName || ""} ${userDoc.data()?.lastName || ""}`.trim()
+      : "مستخدم";
+
+    // Notify task creator (use task ID for deepLink since creator needs to see task, not assignment)
+    const notificationRef = db.collection("notifications").doc();
+    await notificationRef.set({
+      userId: task.createdBy,
+      type: "taskCompleted",
+      title: "مهمة منجزة",
+      body: `أنجز ${userName} المهمة: ${task.title}`,
+      iconName: "check_circle",
+      iconColor: "#10B981",
+      deepLink: `/tasks/${after.taskId}`,
+      isSeen: false,
+      isRead: false,
+      createdAt: timestamp,
+    });
+    console.log(`Created completion notification for task creator ${task.createdBy}`);
+  }
+
+  // Assignment apologized
+  if (after.status === "apologized" && before.status !== "apologized") {
+    console.log(`Assignment ${assignmentId} apologized by user ${after.userId}`);
+
+    // Get task and user details
+    const taskDoc = await db.collection("tasks").doc(after.taskId).get();
+    if (!taskDoc.exists) return;
+
+    const task = taskDoc.data() as Task;
+    const userDoc = await db.collection("users").doc(after.userId).get();
+    const userName = userDoc.exists
+      ? `${userDoc.data()?.firstName || ""} ${userDoc.data()?.lastName || ""}`.trim()
+      : "مستخدم";
+
+    const apologizeMessage = after.apologizeMessage || "بدون سبب";
+
+    // Notify task creator (use task ID for deepLink since creator needs to see task, not assignment)
+    const notificationRef = db.collection("notifications").doc();
+    await notificationRef.set({
+      userId: task.createdBy,
+      type: "taskApologized",
+      title: "اعتذار عن مهمة",
+      body: `اعتذر ${userName} عن المهمة: ${task.title} - السبب: ${apologizeMessage}`,
+      iconName: "warning",
+      iconColor: "#F59E0B",
+      deepLink: `/tasks/${after.taskId}`,
+      isSeen: false,
+      isRead: false,
+      createdAt: timestamp,
+    });
+    console.log(`Created apologize notification for task creator ${task.createdBy}`);
+  }
 });
 
 // ============================================
@@ -1119,5 +1263,38 @@ export const deleteCloudinaryFile = onCall({
   } catch (error) {
     console.error(`Error deleting Cloudinary file: ${publicId}`, error);
     throw new HttpsError("internal", "Failed to delete file from Cloudinary");
+  }
+});
+
+/**
+ * Verify a user's email manually (admin-only function)
+ * Usage: Call this function with the email address to verify
+ */
+export const verifyUserEmail = onCall(async (request) => {
+  const { email } = request.data;
+
+  if (!email) {
+    throw new HttpsError("invalid-argument", "Email is required");
+  }
+
+  try {
+    // Get user by email
+    const user = await getAuth().getUserByEmail(email);
+
+    // Update user to set emailVerified to true
+    await getAuth().updateUser(user.uid, {
+      emailVerified: true,
+    });
+
+    console.log(`✅ Email verified for ${email} (UID: ${user.uid})`);
+
+    return {
+      success: true,
+      message: `Email verified for ${email}`,
+      uid: user.uid,
+    };
+  } catch (error: any) {
+    console.error(`Error verifying email for ${email}:`, error);
+    throw new HttpsError("internal", `Failed to verify email: ${error.message}`);
   }
 });

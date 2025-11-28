@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../../app/di/injection.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/widgets/avatar/ribal_avatar.dart';
 import '../../../../../core/widgets/buttons/ribal_button.dart';
 import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../core/widgets/inputs/ribal_text_field.dart';
@@ -627,18 +628,10 @@ class _UserTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Avatar
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.primary,
-            child: Text(
-              user.initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+          // Avatar using unified RibalAvatar
+          RibalAvatar(
+            user: user,
+            size: RibalAvatarSize.sm,
           ),
           const SizedBox(width: AppSpacing.sm),
           // Info
@@ -798,61 +791,6 @@ class _GroupFormDialogState extends State<_GroupFormDialog> {
                       }
                       return null;
                     },
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  // Preview
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: context.colors.surfaceVariant,
-                      borderRadius: AppSpacing.borderRadiusMd,
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          l10n.group_preview,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: context.colors.textSecondary,
-                                  ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primarySurface,
-                            borderRadius: AppSpacing.borderRadiusFull,
-                            border: Border.all(color: AppColors.primary),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.group_work,
-                                size: 16,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                _nameController.text.isEmpty
-                                    ? l10n.group_name
-                                    : _nameController.text,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
-                                    ?.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   // Submit button

@@ -1,0 +1,298 @@
+# ============================================================================
+# Ribal - CodeMagic CI/CD with Shorebird Code Push
+# ============================================================================
+# Workflows:
+#   1. shorebird-release    - Full releases (main branch, version tags)
+#   2. shorebird-patch      - OTA patches (hotfix/* branches)
+#   3. shorebird-preview    - Preview builds (develop branch)
+# ============================================================================
+
+definitions:
+  environment: &shared_environment
+    vars:
+      FLUTTER_VERSION: "3.19.0"
+      SHOREBIRD_VERSION: "latest"
+    groups:
+      - shorebird_credentials  # SHOREBIRD_TOKEN, SHOREBIRD_APP_ID
+      - firebase_config        # GOOGLE_SERVICES_JSON_BASE64, GOOGLESERVICE_INFO_PLIST_BASE64
+      - notifications         # SLACK_WEBHOOK_URL (optional)
+
+  scripts:
+    - &setup_shorebird
+      name: Install Shorebird CLI
+      script: |
+        echo "📦 Installing Shorebird CLI..."
+        curl --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh -sSf | bash
+        export PATH="$HOME/.shorebird/bin:$PATH"
+        echo "Shorebird version:"
+        shorebird --version
+        shorebird doctor
+
+    - &decode_firebase_configs
+      name: Decode Firebase Configuration Files
+      script: |
+        echo "🔧 Decoding Firebase config files..."
+        echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+        echo "$GOOGLESERVICE_INFO_PLIST_BASE64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+        echo "✅ Firebase configs decoded"
+
+    - &setup_flutter_dependencies
+      name: Install Flutter Dependencies
+      script: |
+        echo "📦 Installing Flutter dependencies..."
+        flutter pub get
+        dart run build_runner build --delete-conflicting-outputs
+        echo "✅ Dependencies installed"
+
+    - &notify_slack_success
+      name: Notify Slack (Success)
+      script: |
+        if [ -n "$SLACK_WEBHOOK_URL" ]; then
+          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}')
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \"✅ Ribal Build SUCCESS\",
+              \"attachments\": [{
+                \"color\": \"good\",
+                \"fields\": [
+                  {\"title\": \"Workflow\", \"value\": \"$CM_WORKFLOW_ID\", \"short\": true},
+                  {\"title\": \"Build\", \"value\": \"$CM_BUILD_ID\", \"short\": true},
+                  {\"title\": \"Branch\", \"value\": \"$CM_BRANCH\", \"short\": true},
+                  {\"title\": \"Version\", \"value\": \"$VERSION\", \"short\": true}
+                ]
+              }]
+            }"
+        fi
+
+    - &notify_slack_failure
+      name: Notify Slack (Failure)
+      script: |
+        if [ -n "$SLACK_WEBHOOK_URL" ]; then
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \"❌ Ribal Build FAILED\",
+              \"attachments\": [{
+                \"color\": \"danger\",
+                \"fields\": [
+                  {\"title\": \"Workflow\", \"value\": \"$CM_WORKFLOW_ID\", \"short\": true},
+                  {\"title\": \"Build\", \"value\": \"$CM_BUILD_ID\", \"short\": true},
+                  {\"title\": \"Branch\", \"value\": \"$CM_BRANCH\", \"short\": true}
+                ]
+              }]
+            }"
+        fi
+
+workflows:
+  # ==========================================================================
+  # WORKFLOW 1: Full Shorebird Release
+  # Trigger: Push to main branch OR version tags (v*.*.*)
+  # Purpose: Create new Shorebird release with full native code
+  # ==========================================================================
+  shorebird-release:
+    name: Shorebird Release (Full Build)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      <<: *shared_environment
+      groups:
+        - shorebird_credentials
+        - android_signing      # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, etc.
+        - ios_signing         # APP_STORE_CONNECT_KEY_ID, etc.
+        - firebase_config
+        - notifications
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+      cancel_previous_builds: true
+
+    scripts:
+      - *setup_shorebird
+      - *decode_firebase_configs
+      - *setup_flutter_dependencies
+
+      - name: Decode Android Keystore
+        script: |
+          echo "🔐 Decoding Android keystore..."
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/ribal-release-key.jks
+          echo "✅ Keystore decoded"
+
+      - name: Build Android AAB with Shorebird
+        script: |
+          echo "🤖 Building Android release with Shorebird..."
+          export PATH="$HOME/.shorebird/bin:$PATH"
+          shorebird release android \
+            --artifact aab \
+            --flutter-version=$FLUTTER_VERSION
+          echo "✅ Android release created"
+
+      - name: Build iOS IPA with Shorebird
+        script: |
+          echo "🍎 Building iOS release with Shorebird..."
+          export PATH="$HOME/.shorebird/bin:$PATH"
+
+          # Set up code signing
+          keychain initialize
+          app-store-connect fetch-signing-files "com.ribal.tasks" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+
+          # Build with Shorebird
+          shorebird release ios \
+            --flutter-version=$FLUTTER_VERSION
+          echo "✅ iOS release created"
+
+      - *notify_slack_success
+
+    artifacts:
+      - build/app/outputs/**/*.aab
+      - build/ios/ipa/*.ipa
+      - shorebird.yaml
+
+    when:
+      failure:
+        - *notify_slack_failure
+
+  # ==========================================================================
+  # WORKFLOW 2: Shorebird Patch (OTA Update)
+  # Trigger: Push to hotfix/* branches
+  # Purpose: Create over-the-air patch for existing release
+  # ==========================================================================
+  shorebird-patch:
+    name: Shorebird Patch (OTA Update)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+
+    environment:
+      <<: *shared_environment
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'hotfix/*'
+          include: true
+      cancel_previous_builds: false
+
+    scripts:
+      - *setup_shorebird
+      - *decode_firebase_configs
+      - *setup_flutter_dependencies
+
+      - name: Extract Patch Info
+        script: |
+          HOTFIX_BRANCH="${CM_BRANCH#hotfix/}"
+          PATCH_VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}')
+          PATCH_NAME="${PATCH_VERSION}-${HOTFIX_BRANCH}"
+
+          echo "🔧 Creating patch: $PATCH_NAME"
+          echo "PATCH_NAME=$PATCH_NAME" >> $CM_ENV
+          echo "PATCH_VERSION=$PATCH_VERSION" >> $CM_ENV
+
+      - name: Create Android Patch
+        script: |
+          echo "🤖 Creating Android patch..."
+          export PATH="$HOME/.shorebird/bin:$PATH"
+
+          shorebird patch android \
+            --release-version=$PATCH_VERSION \
+            --flutter-version=$FLUTTER_VERSION
+
+      - name: Create iOS Patch
+        script: |
+          echo "🍎 Creating iOS patch..."
+          export PATH="$HOME/.shorebird/bin:$PATH"
+
+          shorebird patch ios \
+            --release-version=$PATCH_VERSION \
+            --flutter-version=$FLUTTER_VERSION
+
+      - name: Generate Patch Report
+        script: |
+          echo "📊 Generating patch report..."
+          cat > patch_report.json <<EOF
+          {
+            "patch_name": "$PATCH_NAME",
+            "patch_version": "$PATCH_VERSION",
+            "branch": "$CM_BRANCH",
+            "commit": "$CM_COMMIT",
+            "build_id": "$CM_BUILD_ID",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          cat patch_report.json
+
+      - name: Notify Patch Deployment
+        script: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST "$SLACK_WEBHOOK_URL" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"🚀 Shorebird Patch Deployed\",
+                \"attachments\": [{
+                  \"color\": \"#36a64f\",
+                  \"fields\": [
+                    {\"title\": \"Patch Name\", \"value\": \"$PATCH_NAME\", \"short\": false},
+                    {\"title\": \"Version\", \"value\": \"$PATCH_VERSION\", \"short\": true},
+                    {\"title\": \"Platform\", \"value\": \"Android + iOS\", \"short\": true},
+                    {\"title\": \"Commit\", \"value\": \"$CM_COMMIT\", \"short\": false}
+                  ]
+                }]
+              }"
+          fi
+
+    artifacts:
+      - patch_report.json
+
+    when:
+      failure:
+        - *notify_slack_failure
+
+  # ==========================================================================
+  # WORKFLOW 3: Preview Build (Development)
+  # Trigger: Push to develop branch
+  # Purpose: Standard Flutter build for testing (no Shorebird)
+  # ==========================================================================
+  shorebird-preview:
+    name: Preview Build (Development)
+    max_build_duration: 45
+    instance_type: linux_x2
+
+    environment:
+      flutter: "3.19.0"
+      groups:
+        - firebase_config
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'develop'
+          include: true
+      cancel_previous_builds: true
+
+    scripts:
+      - *decode_firebase_configs
+      - *setup_flutter_dependencies
+
+      - name: Build Android APK
+        script: |
+          echo "🤖 Building Android preview APK..."
+          flutter build apk --debug
+
+      - name: Build iOS (Simulator)
+        script: |
+          echo "🍎 Building iOS preview (simulator)..."
+          flutter build ios --debug --simulator
+
+    artifacts:
+      - build/app/outputs/**/*.apk
+      - build/ios/iphonesimulator/*.app

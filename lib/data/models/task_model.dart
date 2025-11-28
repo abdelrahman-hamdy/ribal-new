@@ -58,6 +58,9 @@ class TaskModel with _$TaskModel {
     @Default([]) List<String> selectedGroupIds,
     @Default([]) List<String> selectedUserIds,
     required String createdBy,
+    // Denormalized fields for performance (avoid extra user fetch)
+    String? creatorName,
+    String? creatorEmail,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _TaskModel;
@@ -103,6 +106,9 @@ class TaskModel with _$TaskModel {
       'selectedGroupIds': data['selectedGroupIds'] ?? [],
       'selectedUserIds': data['selectedUserIds'] ?? [],
       'createdBy': data['createdBy'] ?? '',
+      // Denormalized fields (may be null for old documents)
+      'creatorName': data['creatorName'],
+      'creatorEmail': data['creatorEmail'],
       'createdAt': parseTimestamp(data['createdAt']).toIso8601String(),
       'updatedAt': parseTimestamp(data['updatedAt']).toIso8601String(),
     });
@@ -132,6 +138,9 @@ class TaskModel with _$TaskModel {
       'selectedGroupIds': selectedGroupIds,
       'selectedUserIds': selectedUserIds,
       'createdBy': createdBy,
+      // Denormalized fields
+      'creatorName': creatorName,
+      'creatorEmail': creatorEmail,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };

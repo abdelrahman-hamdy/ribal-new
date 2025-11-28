@@ -96,7 +96,7 @@ class _MyAssignmentsContent extends StatelessWidget {
               builder: (context, state) {
                 // Initial loading - always show skeleton first
                 if (!state.hasLoadedOnce) {
-                  return const AssignmentListSkeletonList(itemCount: 4);
+                  return const AssignmentListSkeletonList(itemCount: 5);
                 }
 
                 // Error state (only after load attempt)
@@ -163,6 +163,12 @@ class _WelcomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    // Get KSA time (UTC+3)
+    final now = DateTime.now().toUtc().add(const Duration(hours: 3));
+    final dateText = _formatDate(now, context);
+    final timeText = _formatTime(now, context);
+
     return Container(
       padding: AppSpacing.pagePadding,
       decoration: BoxDecoration(
@@ -175,6 +181,7 @@ class _WelcomeHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Welcome message
           Text(
             l10n.user_welcomeName(userName),
             style: AppTypography.headlineMedium.copyWith(
@@ -182,11 +189,38 @@ class _WelcomeHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            l10n.task_todayTasks,
-            style: AppTypography.bodyMedium.copyWith(
-              color: context.colors.textSecondary,
-            ),
+
+          // Subheading with date/time
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.task_todayTasks,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: context.colors.textSecondary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: AppSpacing.borderRadiusSm,
+                ),
+                child: Text(
+                  '$dateText • $timeText',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
 
@@ -260,6 +294,39 @@ class _WelcomeHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime dateTime, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isArabic = l10n.localeName == 'ar';
+
+    // Day names
+    const daysAr = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const daysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final dayName = isArabic ? daysAr[dateTime.weekday % 7] : daysEn[dateTime.weekday % 7];
+
+    return '$dayName • ${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  String _formatTime(DateTime dateTime, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isArabic = l10n.localeName == 'ar';
+
+    int hour = dateTime.hour;
+    final isPM = hour >= 12;
+
+    // Convert to 12-hour format
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+
+    final period = isPM
+        ? (isArabic ? 'م' : 'PM')
+        : (isArabic ? 'ص' : 'AM');
+
+    return '$hour:${dateTime.minute.toString().padLeft(2, '0')} $period';
   }
 }
 

@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/di/injection.dart';
 import '../../../data/models/user_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../avatar/ribal_avatar.dart';
 import 'bloc/notes_bloc.dart';
 import 'note_input.dart';
 import 'notes_list.dart';
@@ -16,6 +18,7 @@ class NotesDialog extends StatelessWidget {
   final String assignmentId;
   final String taskId;
   final String assigneeName;
+  final UserRole assigneeRole;
   final String currentUserId;
   final String currentUserName;
   final UserRole currentUserRole;
@@ -29,6 +32,7 @@ class NotesDialog extends StatelessWidget {
     required this.assignmentId,
     required this.taskId,
     required this.assigneeName,
+    required this.assigneeRole,
     required this.currentUserId,
     required this.currentUserName,
     required this.currentUserRole,
@@ -42,6 +46,7 @@ class NotesDialog extends StatelessWidget {
     required String assignmentId,
     required String taskId,
     required String assigneeName,
+    required UserRole assigneeRole,
     required String currentUserId,
     required String currentUserName,
     required UserRole currentUserRole,
@@ -54,6 +59,7 @@ class NotesDialog extends StatelessWidget {
         assignmentId: assignmentId,
         taskId: taskId,
         assigneeName: assigneeName,
+        assigneeRole: assigneeRole,
         currentUserId: currentUserId,
         currentUserName: currentUserName,
         currentUserRole: currentUserRole,
@@ -76,6 +82,7 @@ class NotesDialog extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: _NotesDialogContent(
           assigneeName: assigneeName,
+          assigneeRole: assigneeRole,
           assignmentId: assignmentId,
           taskId: taskId,
           currentUserId: currentUserId,
@@ -91,6 +98,7 @@ class NotesDialog extends StatelessWidget {
 
 class _NotesDialogContent extends StatefulWidget {
   final String assigneeName;
+  final UserRole assigneeRole;
   final String assignmentId;
   final String taskId;
   final String currentUserId;
@@ -101,6 +109,7 @@ class _NotesDialogContent extends StatefulWidget {
 
   const _NotesDialogContent({
     required this.assigneeName,
+    required this.assigneeRole,
     required this.assignmentId,
     required this.taskId,
     required this.currentUserId,
@@ -178,7 +187,7 @@ class _NotesDialogContentState extends State<_NotesDialogContent> {
               // Input
               NoteInput(
                 isSending: state.isSending,
-                hintText: 'اكتب ردك...',
+                hintText: AppLocalizations.of(context)!.notes_writeReply,
                 onSend: (message) {
                   context.read<NotesBloc>().add(NoteSendRequested(
                         assignmentId: widget.assignmentId,
@@ -200,6 +209,12 @@ class _NotesDialogContentState extends State<_NotesDialogContent> {
   }
 
   Widget _buildHeader(BuildContext context, NotesState state) {
+    final l10n = AppLocalizations.of(context)!;
+    // Ensure assigneeName is not empty
+    final displayName = widget.assigneeName.trim().isEmpty
+        ? l10n.user_unknown
+        : widget.assigneeName;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -209,25 +224,13 @@ class _NotesDialogContentState extends State<_NotesDialogContent> {
       ),
       child: Row(
         children: [
-          // Avatar
-          Container(
-            width: AppSpacing.avatarMd,
-            height: AppSpacing.avatarMd,
-            decoration: BoxDecoration(
-              color: context.colors.primarySurface,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                widget.assigneeName.isNotEmpty
-                    ? widget.assigneeName[0].toUpperCase()
-                    : '?',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+          // Avatar - using unified RibalAvatar with role-specific image
+          RibalAvatar.fromData(
+            initials: displayName.isNotEmpty
+                ? displayName[0].toUpperCase()
+                : '?',
+            role: widget.assigneeRole,
+            size: RibalAvatarSize.md,
           ),
           const SizedBox(width: AppSpacing.smd),
           // Title and subtitle
@@ -236,16 +239,17 @@ class _NotesDialogContentState extends State<_NotesDialogContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'ملاحظات ${widget.assigneeName}',
+                  l10n.notes_notesOf(displayName),
                   style: AppTypography.titleMedium.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: context.colors.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (state.hasNotes)
                   Text(
-                    '${state.notesCount} ملاحظة',
+                    '${state.notesCount} ${l10n.notes_notesSingular}',
                     style: AppTypography.bodySmall.copyWith(
                       color: context.colors.textSecondary,
                     ),

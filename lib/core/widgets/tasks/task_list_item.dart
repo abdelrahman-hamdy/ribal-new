@@ -8,6 +8,7 @@ import '../../../data/models/user_model.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../avatar/ribal_avatar.dart';
 
 export '../../../data/models/user_model.dart' show UserRole;
 
@@ -50,22 +51,26 @@ class TaskListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Cache theme lookup to avoid repeated tree traversals
+    final theme = Theme.of(context);
+    final colors = context.colors;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: AppSpacing.cardPadding,
         decoration: BoxDecoration(
-          color: context.colors.surface,
+          color: colors.surface,
           borderRadius: AppSpacing.borderRadiusMd,
-          border: Border.all(color: context.colors.border),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Labels (chip style with background)
             if (labels.isNotEmpty) ...[
-              _LabelChips(labels: labels),
+              _LabelChips(labels: labels, theme: theme),
               const SizedBox(height: AppSpacing.sm),
             ],
 
@@ -106,9 +111,9 @@ class TaskListItem extends StatelessWidget {
                       Expanded(
                         child: Text(
                           task.title,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: context.colors.textPrimary,
+                            color: colors.textPrimary,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -120,29 +125,11 @@ class TaskListItem extends StatelessWidget {
                 // Deadline time (floated left) - red when passed
                 if (deadlineText != null || isPassed) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  Builder(
-                    builder: (context) {
-                      final l10n = AppLocalizations.of(context)!;
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isPassed ? Icons.error_outline : Icons.hourglass_bottom,
-                            size: 12,
-                            color: isPassed ? AppColors.error : context.colors.textTertiary,
-                          ),
-                          const SizedBox(width: AppSpacing.xxs),
-                          Text(
-                            isPassed ? l10n.task_deadlineExpired : deadlineText!,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: isPassed ? AppColors.error : context.colors.textTertiary,
-                              fontSize: 11,
-                              fontWeight: isPassed ? FontWeight.w600 : null,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                  _DeadlineText(
+                    deadlineText: deadlineText,
+                    isPassed: isPassed,
+                    theme: theme,
+                    colors: colors,
                   ),
                 ],
               ],
@@ -154,16 +141,16 @@ class TaskListItem extends StatelessWidget {
               children: [
                 // Creator info with avatar
                 if (creator != null) ...[
-                  _CreatorInfo(creator: creator!),
+                  _CreatorInfo(creator: creator!, theme: theme),
                 ],
 
                 const Spacer(),
 
                 // Progress indicator (for admin/manager) or Status badge (for employee)
                 if (taskProgress != null)
-                  _SegmentedProgressBadge(progress: taskProgress!)
+                  _SegmentedProgressBadge(progress: taskProgress!, theme: theme, colors: colors)
                 else if (assignmentStatus != null)
-                  _StatusBadge(status: assignmentStatus!),
+                  _StatusBadge(status: assignmentStatus!, theme: theme),
               ],
             ),
           ],
@@ -173,18 +160,58 @@ class TaskListItem extends StatelessWidget {
   }
 }
 
+/// Deadline text widget with cached theme
+class _DeadlineText extends StatelessWidget {
+  final String? deadlineText;
+  final bool isPassed;
+  final ThemeData theme;
+  final AppColorsExtension colors;
+
+  const _DeadlineText({
+    required this.deadlineText,
+    required this.isPassed,
+    required this.theme,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          isPassed ? Icons.error_outline : Icons.hourglass_bottom,
+          size: 12,
+          color: isPassed ? AppColors.error : colors.textTertiary,
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Text(
+          isPassed ? l10n.task_deadlineExpired : deadlineText!,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: isPassed ? AppColors.error : colors.textTertiary,
+            fontSize: 11,
+            fontWeight: isPassed ? FontWeight.w600 : null,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Label chips display - chip style with colored background (matches task details page)
 class _LabelChips extends StatelessWidget {
   final List<LabelModel> labels;
+  final ThemeData theme;
 
-  const _LabelChips({required this.labels});
+  const _LabelChips({required this.labels, required this.theme});
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xs,
-      children: labels.map((label) => _LabelChip(label: label)).toList(),
+      children: labels.map((label) => _LabelChip(label: label, theme: theme)).toList(),
     );
   }
 }
@@ -192,8 +219,9 @@ class _LabelChips extends StatelessWidget {
 /// Label chip with colored background (matches task details page style)
 class _LabelChip extends StatelessWidget {
   final LabelModel label;
+  final ThemeData theme;
 
-  const _LabelChip({required this.label});
+  const _LabelChip({required this.label, required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -210,7 +238,7 @@ class _LabelChip extends StatelessWidget {
       ),
       child: Text(
         label.name,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        style: theme.textTheme.labelSmall?.copyWith(
           color: labelColor.color,
           fontWeight: FontWeight.w500,
           fontSize: 11,
@@ -223,40 +251,26 @@ class _LabelChip extends StatelessWidget {
 /// Creator info with small avatar and role-colored text
 class _CreatorInfo extends StatelessWidget {
   final UserModel creator;
+  final ThemeData theme;
 
-  const _CreatorInfo({required this.creator});
+  const _CreatorInfo({required this.creator, required this.theme});
 
   @override
   Widget build(BuildContext context) {
-    final roleColor = _getRoleColor(creator.role);
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Small avatar
-        CircleAvatar(
-          radius: 10,
-          backgroundColor: roleColor.withValues(alpha: 0.2),
-          backgroundImage: creator.avatarUrl != null
-              ? NetworkImage(creator.avatarUrl!)
-              : null,
-          child: creator.avatarUrl == null
-              ? Text(
-                  _getInitials(creator.fullName),
-                  style: TextStyle(
-                    color: roleColor,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
+        // Small avatar using unified RibalAvatar
+        RibalAvatar(
+          user: creator,
+          size: RibalAvatarSize.xs,
         ),
         const SizedBox(width: AppSpacing.xs),
-        // Name with role color
+        // Name with normal text color (role color is now in avatar border)
         Text(
           creator.fullName,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: roleColor,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: context.colors.textPrimary,
             fontWeight: FontWeight.w600,
           ),
           maxLines: 1,
@@ -265,34 +279,14 @@ class _CreatorInfo extends StatelessWidget {
       ],
     );
   }
-
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return AppColors.roleAdmin;
-      case UserRole.manager:
-        return AppColors.roleManager;
-      case UserRole.employee:
-        return AppColors.roleEmployee;
-    }
-  }
-
-  String _getInitials(String name) {
-    final parts = name.split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    } else if (parts.isNotEmpty && parts[0].isNotEmpty) {
-      return parts[0][0].toUpperCase();
-    }
-    return '?';
-  }
 }
 
 /// Status badge for displaying assignment status (for employee view)
 class _StatusBadge extends StatelessWidget {
   final AssignmentStatus status;
+  final ThemeData theme;
 
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.status, required this.theme});
 
   String _getStatusDisplayName(AppLocalizations l10n, AssignmentStatus status) {
     switch (status) {
@@ -336,7 +330,7 @@ class _StatusBadge extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Text(
             _getStatusDisplayName(l10n, status),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            style: theme.textTheme.labelSmall?.copyWith(
               color: statusColor,
               fontWeight: FontWeight.w500,
               fontSize: 11,
@@ -351,8 +345,14 @@ class _StatusBadge extends StatelessWidget {
 /// Segmented progress badge showing done/pending/overdue
 class _SegmentedProgressBadge extends StatelessWidget {
   final TaskProgress progress;
+  final ThemeData theme;
+  final AppColorsExtension colors;
 
-  const _SegmentedProgressBadge({required this.progress});
+  const _SegmentedProgressBadge({
+    required this.progress,
+    required this.theme,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -364,7 +364,7 @@ class _SegmentedProgressBadge extends StatelessWidget {
           vertical: AppSpacing.xxs,
         ),
         decoration: BoxDecoration(
-          color: context.colors.taskNoAssignmentsSurface,
+          color: colors.taskNoAssignmentsSurface,
           borderRadius: AppSpacing.borderRadiusFull,
         ),
         child: Row(
@@ -378,7 +378,7 @@ class _SegmentedProgressBadge extends StatelessWidget {
             const SizedBox(width: AppSpacing.xxs),
             Text(
               l10n.task_noAssignments,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: AppColors.taskNoAssignments,
                 fontSize: 10,
               ),
@@ -402,7 +402,7 @@ class _SegmentedProgressBadge extends StatelessWidget {
         vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: context.colors.surfaceVariant,
+        color: colors.surfaceVariant,
         borderRadius: AppSpacing.borderRadiusFull,
       ),
       child: Row(
@@ -434,7 +434,7 @@ class _SegmentedProgressBadge extends StatelessWidget {
                   // If all zero, show empty
                   if (totalFlex == 0)
                     Expanded(
-                      child: Container(color: context.colors.surfaceDisabled),
+                      child: Container(color: colors.surfaceDisabled),
                     ),
                 ],
               ),
@@ -444,8 +444,8 @@ class _SegmentedProgressBadge extends StatelessWidget {
           // Progress text
           Text(
             '${progress.completedCount}/${progress.totalAssignments}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: context.colors.textSecondary,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colors.textSecondary,
               fontWeight: FontWeight.w600,
               fontSize: 11,
             ),

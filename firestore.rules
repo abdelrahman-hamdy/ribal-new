@@ -26,12 +26,12 @@ service cloud.firestore {
       // All authenticated users can read user profiles (for displaying names/avatars in tasks)
       allow read: if isAuthenticated();
 
-      // Only admins can create users
-      allow create: if isAdmin();
+      // Users can create their own account during registration, admins can create any user
+      allow create: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
 
-      // Users can update their own fcmTokens and avatarUrl, admins can update anything
+      // Users can update their own fcmToken, avatarUrl, and profile info, admins can update anything
       allow update: if isAuthenticated() && (
-        request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmTokens', 'avatarUrl', 'updatedAt'])
+        request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken', 'fcmTokenUpdatedAt', 'avatarUrl', 'firstName', 'lastName', 'updatedAt'])
         || isAdmin()
       );
 
@@ -45,10 +45,10 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Whitelist collection
+    // Whitelist collection - allow unauthenticated read for registration
     match /whitelist/{email} {
-      // Only admins can manage whitelist
-      allow read, write: if isAdmin();
+      allow read: if true;  // Anyone can read to check during registration
+      allow write: if isAdmin();
     }
 
     // Groups collection

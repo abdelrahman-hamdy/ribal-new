@@ -91,8 +91,9 @@ class StatisticsRepository {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    // Get tasks created in range
-    final tasksSnapshot = await _firestoreService.tasksCollection
+    // Use .count() aggregation for tasks - avoids downloading all docs!
+    // .count() costs 1 read per 1000 documents counted vs 1 read per document
+    final tasksCountQuery = _firestoreService.tasksCollection
         .where(
           FirebaseConstants.taskCreatedAt,
           isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
@@ -101,11 +102,13 @@ class StatisticsRepository {
           FirebaseConstants.taskCreatedAt,
           isLessThanOrEqualTo: Timestamp.fromDate(endDate),
         )
-        .get();
+        .count();
 
-    final totalTasks = tasksSnapshot.docs.length;
+    final tasksCountSnapshot = await tasksCountQuery.get();
+    final totalTasks = tasksCountSnapshot.count ?? 0;
 
-    // Get assignments scheduled in range
+    // Get assignments scheduled in range (need full data for per-user breakdown)
+    // Limit to 5000 to prevent runaway queries
     final assignmentsSnapshot = await _firestoreService.assignmentsCollection
         .where(
           FirebaseConstants.assignmentScheduledDate,
@@ -115,6 +118,7 @@ class StatisticsRepository {
           FirebaseConstants.assignmentScheduledDate,
           isLessThanOrEqualTo: Timestamp.fromDate(endDate),
         )
+        .limit(5000)
         .get();
 
     final assignments = assignmentsSnapshot.docs
@@ -303,7 +307,7 @@ class StatisticsRepository {
     required DateTime endDate,
     List<String>? userIds,
   }) async {
-    var query = _firestoreService.assignmentsCollection
+    Query<Map<String, dynamic>> query = _firestoreService.assignmentsCollection
         .where(
           FirebaseConstants.assignmentScheduledDate,
           isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
@@ -320,7 +324,8 @@ class StatisticsRepository {
       );
     }
 
-    final snapshot = await query.get();
+    // Limit to 5000 to prevent runaway queries
+    final snapshot = await query.limit(5000).get();
     final assignments = snapshot.docs
         .map((doc) => AssignmentModel.fromFirestore(doc))
         .toList();

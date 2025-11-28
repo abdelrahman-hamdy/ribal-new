@@ -108,13 +108,6 @@ class _AssignmentDetailContent extends StatelessWidget {
 
                     // Notes section
                     if (currentUser != null) ...[
-                      Text(
-                        l10n.notes_title,
-                        style: AppTypography.titleMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
                       NotesSection(
                         assignmentId: state.assignment!.id,
                         taskId: state.task!.id,

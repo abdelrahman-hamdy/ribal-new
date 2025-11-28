@@ -494,6 +494,24 @@ abstract class AppLocalizations {
   /// **'هل أنت متأكد من تسجيل الخروج؟'**
   String get profile_logoutConfirm;
 
+  /// No description provided for @profile_deleteAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الحساب'**
+  String get profile_deleteAccount;
+
+  /// No description provided for @profile_deleteAccountConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل أنت متأكد من حذف هذا الحساب؟ هذا الإجراء لا يمكن التراجع عنه!'**
+  String get profile_deleteAccountConfirm;
+
+  /// No description provided for @profile_accountDeleted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حذف الحساب بنجاح'**
+  String get profile_accountDeleted;
+
   /// No description provided for @profile_changesSaved.
   ///
   /// In ar, this message translates to:
@@ -635,7 +653,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_emailHint.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل بريدك الإلكتروني'**
+  /// **'user@example.com'**
   String get auth_emailHint;
 
   /// No description provided for @auth_emailRequired.
@@ -659,7 +677,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_passwordHint.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل كلمة المرور'**
+  /// **'8 أحرف على الأقل'**
   String get auth_passwordHint;
 
   /// No description provided for @auth_passwordRequired.
@@ -707,7 +725,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_passwordNewHint.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل كلمة المرور الجديدة'**
+  /// **'8 أحرف على الأقل'**
   String get auth_passwordNewHint;
 
   /// No description provided for @auth_passwordNewRequired.
@@ -725,7 +743,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_passwordConfirmHint.
   ///
   /// In ar, this message translates to:
-  /// **'أعد إدخال كلمة المرور الجديدة'**
+  /// **'أعد إدخال كلمة المرور'**
   String get auth_passwordConfirmHint;
 
   /// No description provided for @auth_passwordConfirmRequired.
@@ -749,7 +767,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_firstNameHint.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل الاسم الأول'**
+  /// **'أحمد'**
   String get auth_firstNameHint;
 
   /// No description provided for @auth_firstNameRequired.
@@ -767,7 +785,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_lastNameHint.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل اسم العائلة'**
+  /// **'محمد'**
   String get auth_lastNameHint;
 
   /// No description provided for @auth_lastNameRequired.
@@ -785,7 +803,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_invitationCodeHint.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل كود الدعوة'**
+  /// **'ABC-123'**
   String get auth_invitationCodeHint;
 
   /// No description provided for @auth_invitationCodeRequired.
@@ -865,6 +883,120 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'نسيت كلمة المرور؟'**
   String get auth_forgotPassword;
+
+  /// No description provided for @auth_forgotPasswordTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'استعادة كلمة المرور'**
+  String get auth_forgotPasswordTitle;
+
+  /// No description provided for @auth_forgotPasswordSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريدك الإلكتروني لإرسال رابط إعادة تعيين كلمة المرور'**
+  String get auth_forgotPasswordSubtitle;
+
+  /// No description provided for @auth_forgotPasswordButton.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رابط الاستعادة'**
+  String get auth_forgotPasswordButton;
+
+  /// No description provided for @auth_forgotPasswordSuccess.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني'**
+  String get auth_forgotPasswordSuccess;
+
+  /// No description provided for @auth_forgotPasswordEmailSent.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقق من بريدك الإلكتروني'**
+  String get auth_forgotPasswordEmailSent;
+
+  /// No description provided for @auth_forgotPasswordBackToLogin.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة لتسجيل الدخول'**
+  String get auth_forgotPasswordBackToLogin;
+
+  /// No description provided for @auth_checkingWhitelist.
+  ///
+  /// In ar, this message translates to:
+  /// **'جاري التحقق من البريد الإلكتروني...'**
+  String get auth_checkingWhitelist;
+
+  /// No description provided for @auth_whitelistNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني غير مسجل في القائمة البيضاء. يرجى إدخال كود الدعوة.'**
+  String get auth_whitelistNotice;
+
+  /// No description provided for @auth_error_userNotFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد حساب بهذا البريد الإلكتروني'**
+  String get auth_error_userNotFound;
+
+  /// No description provided for @auth_error_wrongPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور غير صحيحة'**
+  String get auth_error_wrongPassword;
+
+  /// No description provided for @auth_error_emailInUse.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني مستخدم بالفعل'**
+  String get auth_error_emailInUse;
+
+  /// No description provided for @auth_error_weakPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور ضعيفة جداً'**
+  String get auth_error_weakPassword;
+
+  /// No description provided for @auth_error_invalidEmail.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني غير صالح'**
+  String get auth_error_invalidEmail;
+
+  /// No description provided for @auth_error_tooManyRequests.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تجاوز عدد المحاولات، حاول لاحقاً'**
+  String get auth_error_tooManyRequests;
+
+  /// No description provided for @auth_error_network.
+  ///
+  /// In ar, this message translates to:
+  /// **'خطأ في الاتصال بالإنترنت'**
+  String get auth_error_network;
+
+  /// No description provided for @auth_error_invalidInvitation.
+  ///
+  /// In ar, this message translates to:
+  /// **'كود الدعوة غير صالح'**
+  String get auth_error_invalidInvitation;
+
+  /// No description provided for @auth_error_notWhitelisted.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني غير مسجل في القائمة البيضاء'**
+  String get auth_error_notWhitelisted;
+
+  /// No description provided for @auth_error_loginFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'فشل تسجيل الدخول'**
+  String get auth_error_loginFailed;
+
+  /// No description provided for @auth_error_unknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ غير متوقع'**
+  String get auth_error_unknown;
 
   /// No description provided for @nav_home.
   ///
@@ -2858,6 +2990,12 @@ abstract class AppLocalizations {
   /// **'إجمالي المهام'**
   String get statistics_totalTasks;
 
+  /// No description provided for @statistics_totalAssignments.
+  ///
+  /// In ar, this message translates to:
+  /// **'التكليفات'**
+  String get statistics_totalAssignments;
+
   /// No description provided for @statistics_completed.
   ///
   /// In ar, this message translates to:
@@ -3709,6 +3847,78 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'يمكنك إنشاء مهام فقط عندما يتم تعيين مجموعة واحدة على الأقل لك، أو عند منحك صلاحية التعيين لجميع الموظفين.'**
   String get manager_canCreateOnlyWithGroups;
+
+  /// No description provided for @manager_myTasks.
+  ///
+  /// In ar, this message translates to:
+  /// **'مهامي'**
+  String get manager_myTasks;
+
+  /// No description provided for @manager_taskManagement.
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة المهام'**
+  String get manager_taskManagement;
+
+  /// No description provided for @notes_writeReply.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب ردك...'**
+  String get notes_writeReply;
+
+  /// No description provided for @notes_notesOf.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظات {name}'**
+  String notes_notesOf(String name);
+
+  /// No description provided for @notes_notesSingular.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة'**
+  String get notes_notesSingular;
+
+  /// No description provided for @notes_noNotesYet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ملاحظات بعد'**
+  String get notes_noNotesYet;
+
+  /// No description provided for @notes_startConversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ المحادثة بإرسال ملاحظة'**
+  String get notes_startConversation;
+
+  /// No description provided for @notes_header.
+  ///
+  /// In ar, this message translates to:
+  /// **'الملاحظات'**
+  String get notes_header;
+
+  /// No description provided for @date_formatAM.
+  ///
+  /// In ar, this message translates to:
+  /// **'صباحاً'**
+  String get date_formatAM;
+
+  /// No description provided for @date_formatPM.
+  ///
+  /// In ar, this message translates to:
+  /// **'مساءً'**
+  String get date_formatPM;
+
+  /// No description provided for @task_noLabelsAvailableShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد تصنيفات متاحة'**
+  String get task_noLabelsAvailableShort;
+
+  /// No description provided for @task_noGroupsAvailableShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مجموعات متاحة'**
+  String get task_noGroupsAvailableShort;
 }
 
 class _AppLocalizationsDelegate

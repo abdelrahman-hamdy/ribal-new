@@ -7,6 +7,7 @@ import '../../../../app/router/routes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/notifications/notification_badge.dart';
 import '../../../../core/widgets/tasks/today_tasks/today_tasks_section.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../auth/bloc/auth_bloc.dart';
 
 class TeamTasksPage extends StatefulWidget {
@@ -32,6 +33,8 @@ class _TeamTasksPageState extends State<TeamTasksPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         final userId = authState is AuthAuthenticated ? authState.user.id : null;
@@ -43,7 +46,7 @@ class _TeamTasksPageState extends State<TeamTasksPage> {
             ..add(TodayTasksLoadRequested(creatorId: userId)),
           child: Scaffold(
             appBar: AppBar(
-              title: const Text('إدارة المهام'),
+              title: Text(l10n.manager_taskManagement),
               actions: [
                 if (authState is AuthAuthenticated)
                   NotificationBadge(

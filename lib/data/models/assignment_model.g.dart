@@ -25,6 +25,8 @@ _$AssignmentModelImpl _$$AssignmentModelImplFromJson(
           : DateTime.parse(json['overdueAt'] as String),
       markedDoneBy: json['markedDoneBy'] as String?,
       attachmentUrl: json['attachmentUrl'] as String?,
+      taskTitle: json['taskTitle'] as String?,
+      userName: json['userName'] as String?,
       scheduledDate: DateTime.parse(json['scheduledDate'] as String),
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
@@ -42,6 +44,8 @@ Map<String, dynamic> _$$AssignmentModelImplToJson(
       'overdueAt': instance.overdueAt?.toIso8601String(),
       'markedDoneBy': instance.markedDoneBy,
       'attachmentUrl': instance.attachmentUrl,
+      'taskTitle': instance.taskTitle,
+      'userName': instance.userName,
       'scheduledDate': instance.scheduledDate.toIso8601String(),
       'createdAt': instance.createdAt.toIso8601String(),
     };

@@ -9,6 +9,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/buttons/ribal_button.dart';
 import '../../../core/widgets/inputs/ribal_text_field.dart';
 import '../../../core/widgets/feedback/error_state.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -28,11 +29,28 @@ class _RegisterPageState extends State<RegisterPage> {
   final _invitationCodeController = TextEditingController();
 
   bool _showInvitationField = false;
-  bool _isCheckingWhitelist = false;
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    // Hide invitation field when email is changed (in case user made a typo)
+    _emailController.addListener(_onEmailChanged);
+  }
+
+  void _onEmailChanged() {
+    if (_showInvitationField) {
+      setState(() {
+        _showInvitationField = false;
+        _invitationCodeController.clear();
+        _errorMessage = null;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _emailController.removeListener(_onEmailChanged);
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -42,32 +60,12 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  void _handleCheckWhitelist() {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      setState(() => _errorMessage = 'أدخل البريد الإلكتروني أولاً');
-      return;
-    }
-
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(email)) {
-      setState(() => _errorMessage = 'البريد الإلكتروني غير صالح');
-      return;
-    }
-
-    setState(() {
-      _errorMessage = null;
-      _isCheckingWhitelist = true;
-    });
-
-    context.read<AuthBloc>().add(AuthCheckWhitelistRequested(email: email));
-  }
-
   void _handleRegister() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final l10n = AppLocalizations.of(context)!;
     if (_passwordController.text != _confirmPasswordController.text) {
-      setState(() => _errorMessage = 'كلمات المرور غير متطابقة');
+      setState(() => _errorMessage = l10n.auth_passwordMismatch);
       return;
     }
 
@@ -88,28 +86,24 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthWhitelistCheckResult) {
-          setState(() {
-            _isCheckingWhitelist = false;
-            _showInvitationField = !state.isWhitelisted;
-          });
-        } else if (state is AuthEmailNotVerified) {
+        if (state is AuthEmailNotVerified) {
           context.go('${Routes.verifyEmail}?email=${state.email}');
         } else if (state is AuthError) {
+          final l10n = AppLocalizations.of(context)!;
           setState(() {
-            _errorMessage = state.message;
-            _isCheckingWhitelist = false;
+            // Show invitation field if not whitelisted
+            if (state.message == 'not-whitelisted') {
+              _showInvitationField = true;
+              // Don't show error message - the warning in the invitation field is enough
+              _errorMessage = null;
+            } else {
+              _errorMessage = _getLocalizedError(l10n, state.message);
+            }
           });
         }
       },
       child: Scaffold(
         backgroundColor: context.colors.background,
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go(Routes.login),
-          ),
-        ),
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -122,32 +116,35 @@ class _RegisterPageState extends State<RegisterPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Logo
-                      Center(
-                        child: Image.asset(
-                          'assets/images/rbal-logo.png',
-                          width: 100,
-                          height: 100,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
+                      _buildLogo(),
+                      const SizedBox(height: AppSpacing.md),
 
                       // Title
-                      Text(
-                        'إنشاء حساب',
-                        style: AppTypography.displayMedium.copyWith(
-                          color: context.colors.textPrimary,
-                        ),
-                        textAlign: TextAlign.center,
+                      Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context)!;
+                          return Column(
+                            children: [
+                              Text(
+                                l10n.auth_register,
+                                style: AppTypography.displayMedium.copyWith(
+                                  color: context.colors.textPrimary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              Text(
+                                l10n.auth_registerSubtitle,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: context.colors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'أدخل بياناتك لإنشاء حساب جديد',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: context.colors.textSecondary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.lg),
 
                       // Error message
                       if (_errorMessage != null) ...[
@@ -156,55 +153,52 @@ class _RegisterPageState extends State<RegisterPage> {
                       ],
 
                       // Name fields
-                      Row(
-                        children: [
-                          Expanded(
-                            child: RibalTextField(
-                              label: 'الاسم الأول',
-                              hint: 'أدخل اسمك',
-                              controller: _firstNameController,
-                              textInputAction: TextInputAction.next,
-                              prefixIcon: Icons.person_outline,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'مطلوب';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: RibalTextField(
-                              label: 'الاسم الأخير',
-                              hint: 'أدخل اسم العائلة',
-                              controller: _lastNameController,
-                              textInputAction: TextInputAction.next,
-                              prefixIcon: Icons.person_outline,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'مطلوب';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                      Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context)!;
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: RibalTextField(
+                                  label: l10n.auth_firstName,
+                                  hint: l10n.auth_firstNameHint,
+                                  controller: _firstNameController,
+                                  textInputAction: TextInputAction.next,
+                                  prefixIcon: Icons.person_outline,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return l10n.auth_firstNameRequired;
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: RibalTextField(
+                                  label: l10n.auth_lastName,
+                                  hint: l10n.auth_lastNameHint,
+                                  controller: _lastNameController,
+                                  textInputAction: TextInputAction.next,
+                                  prefixIcon: Icons.person_outline,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return l10n.auth_lastNameRequired;
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      // Email field with check button
+                      // Email field
                       RibalEmailField(
                         controller: _emailController,
                         textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      RibalButton(
-                        text: 'التحقق من البريد الإلكتروني',
-                        onPressed: _handleCheckWhitelist,
-                        isLoading: _isCheckingWhitelist,
-                        variant: RibalButtonVariant.outline,
-                        size: RibalButtonSize.small,
                       ),
                       const SizedBox(height: AppSpacing.md),
 
@@ -229,29 +223,39 @@ class _RegisterPageState extends State<RegisterPage> {
                                         ),
                                         const SizedBox(width: AppSpacing.sm),
                                         Expanded(
-                                          child: Text(
-                                            'البريد الإلكتروني غير مسجل في القائمة البيضاء. يرجى إدخال كود الدعوة.',
-                                            style: AppTypography.bodySmall.copyWith(
-                                              color: AppColors.warning,
-                                            ),
+                                          child: Builder(
+                                            builder: (context) {
+                                              final l10n = AppLocalizations.of(context)!;
+                                              return Text(
+                                                l10n.auth_whitelistNotice,
+                                                style: AppTypography.bodySmall.copyWith(
+                                                  color: AppColors.warning,
+                                                ),
+                                              );
+                                            },
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(height: AppSpacing.md),
-                                  RibalTextField(
-                                    label: 'كود الدعوة',
-                                    hint: 'أدخل كود الدعوة',
-                                    controller: _invitationCodeController,
-                                    textInputAction: TextInputAction.next,
-                                    prefixIcon: Icons.vpn_key_outlined,
-                                    validator: (value) {
-                                      if (_showInvitationField &&
-                                          (value == null || value.isEmpty)) {
-                                        return 'كود الدعوة مطلوب';
-                                      }
-                                      return null;
+                                  Builder(
+                                    builder: (context) {
+                                      final l10n = AppLocalizations.of(context)!;
+                                      return RibalTextField(
+                                        label: l10n.auth_invitationCode,
+                                        hint: l10n.auth_invitationCodeHint,
+                                        controller: _invitationCodeController,
+                                        textInputAction: TextInputAction.next,
+                                        prefixIcon: Icons.vpn_key_outlined,
+                                        validator: (value) {
+                                          if (_showInvitationField &&
+                                              (value == null || value.isEmpty)) {
+                                            return l10n.auth_invitationCodeRequired;
+                                          }
+                                          return null;
+                                        },
+                                      );
                                     },
                                   ),
                                   const SizedBox(height: AppSpacing.md),
@@ -267,19 +271,24 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      RibalPasswordField(
-                        controller: _confirmPasswordController,
-                        label: 'تأكيد كلمة المرور',
-                        hint: 'أعد إدخال كلمة المرور',
-                        textInputAction: TextInputAction.done,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'تأكيد كلمة المرور مطلوب';
-                          }
-                          if (value != _passwordController.text) {
-                            return 'كلمات المرور غير متطابقة';
-                          }
-                          return null;
+                      Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context)!;
+                          return RibalPasswordField(
+                            controller: _confirmPasswordController,
+                            label: l10n.auth_passwordConfirm,
+                            hint: l10n.auth_passwordConfirmHint,
+                            textInputAction: TextInputAction.done,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return l10n.auth_passwordConfirmRequired;
+                              }
+                              if (value != _passwordController.text) {
+                                return l10n.auth_passwordMismatch;
+                              }
+                              return null;
+                            },
+                          );
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -287,8 +296,9 @@ class _RegisterPageState extends State<RegisterPage> {
                       // Register button
                       BlocBuilder<AuthBloc, AuthState>(
                         builder: (context, state) {
+                          final l10n = AppLocalizations.of(context)!;
                           return RibalButton(
-                            text: 'إنشاء حساب',
+                            text: l10n.auth_register,
                             onPressed: _handleRegister,
                             isLoading: state is AuthLoading,
                           );
@@ -297,20 +307,25 @@ class _RegisterPageState extends State<RegisterPage> {
                       const SizedBox(height: AppSpacing.md),
 
                       // Login link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'لديك حساب بالفعل؟',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: context.colors.textSecondary,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => context.go(Routes.login),
-                            child: const Text('تسجيل الدخول'),
-                          ),
-                        ],
+                      Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context)!;
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                l10n.auth_haveAccount,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: context.colors.textSecondary,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => context.go(Routes.login),
+                                child: Text(l10n.auth_login),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -321,5 +336,53 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildLogo() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Center(
+      child: Container(
+        padding: isDark ? const EdgeInsets.all(8) : null,
+        decoration: isDark
+            ? BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(12),
+              )
+            : null,
+        child: Image.asset(
+          'assets/images/rbal-logo.png',
+          width: 100,
+          height: 100,
+        ),
+      ),
+    );
+  }
+
+  String _getLocalizedError(AppLocalizations l10n, String errorCode) {
+    switch (errorCode) {
+      case 'user-not-found':
+        return l10n.auth_error_userNotFound;
+      case 'wrong-password':
+        return l10n.auth_error_wrongPassword;
+      case 'email-in-use':
+        return l10n.auth_error_emailInUse;
+      case 'weak-password':
+        return l10n.auth_error_weakPassword;
+      case 'invalid-email':
+        return l10n.auth_error_invalidEmail;
+      case 'too-many-requests':
+        return l10n.auth_error_tooManyRequests;
+      case 'network':
+        return l10n.auth_error_network;
+      case 'invalid-invitation':
+        return l10n.auth_error_invalidInvitation;
+      case 'not-whitelisted':
+        return l10n.auth_error_notWhitelisted;
+      case 'login-failed':
+        return l10n.auth_error_loginFailed;
+      default:
+        return l10n.auth_error_unknown;
+    }
   }
 }

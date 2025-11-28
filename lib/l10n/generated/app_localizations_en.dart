@@ -207,6 +207,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile_logoutConfirm => 'Are you sure you want to logout?';
 
   @override
+  String get profile_deleteAccount => 'Delete Account';
+
+  @override
+  String get profile_deleteAccountConfirm =>
+      'Are you sure you want to delete this account? This action cannot be undone!';
+
+  @override
+  String get profile_accountDeleted => 'Account deleted successfully';
+
+  @override
   String get profile_changesSaved => 'Changes saved successfully';
 
   @override
@@ -278,7 +288,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_email => 'Email';
 
   @override
-  String get auth_emailHint => 'Enter your email';
+  String get auth_emailHint => 'user@example.com';
 
   @override
   String get auth_emailRequired => 'Email is required';
@@ -290,7 +300,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_password => 'Password';
 
   @override
-  String get auth_passwordHint => 'Enter password';
+  String get auth_passwordHint => 'Min 8 characters';
 
   @override
   String get auth_passwordRequired => 'Password is required';
@@ -314,7 +324,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_passwordNew => 'New Password';
 
   @override
-  String get auth_passwordNewHint => 'Enter new password';
+  String get auth_passwordNewHint => 'Min 8 characters';
 
   @override
   String get auth_passwordNewRequired => 'New password is required';
@@ -323,7 +333,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_passwordConfirm => 'Confirm Password';
 
   @override
-  String get auth_passwordConfirmHint => 'Re-enter new password';
+  String get auth_passwordConfirmHint => 'Re-enter password';
 
   @override
   String get auth_passwordConfirmRequired =>
@@ -336,7 +346,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_firstName => 'First Name';
 
   @override
-  String get auth_firstNameHint => 'Enter first name';
+  String get auth_firstNameHint => 'John';
 
   @override
   String get auth_firstNameRequired => 'First name is required';
@@ -345,7 +355,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_lastName => 'Last Name';
 
   @override
-  String get auth_lastNameHint => 'Enter last name';
+  String get auth_lastNameHint => 'Smith';
 
   @override
   String get auth_lastNameRequired => 'Last name is required';
@@ -354,7 +364,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_invitationCode => 'Invitation Code';
 
   @override
-  String get auth_invitationCodeHint => 'Enter invitation code';
+  String get auth_invitationCodeHint => 'ABC-123';
 
   @override
   String get auth_invitationCodeRequired => 'Invitation code is required';
@@ -395,6 +405,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_forgotPassword => 'Forgot password?';
+
+  @override
+  String get auth_forgotPasswordTitle => 'Reset Password';
+
+  @override
+  String get auth_forgotPasswordSubtitle =>
+      'Enter your email to receive a password reset link';
+
+  @override
+  String get auth_forgotPasswordButton => 'Send Reset Link';
+
+  @override
+  String get auth_forgotPasswordSuccess =>
+      'Password reset link has been sent to your email';
+
+  @override
+  String get auth_forgotPasswordEmailSent => 'Check your email';
+
+  @override
+  String get auth_forgotPasswordBackToLogin => 'Back to login';
+
+  @override
+  String get auth_checkingWhitelist => 'Checking email...';
+
+  @override
+  String get auth_whitelistNotice =>
+      'Email is not whitelisted. Please enter an invitation code.';
+
+  @override
+  String get auth_error_userNotFound => 'No account found with this email';
+
+  @override
+  String get auth_error_wrongPassword => 'Incorrect password';
+
+  @override
+  String get auth_error_emailInUse => 'Email already in use';
+
+  @override
+  String get auth_error_weakPassword => 'Password is too weak';
+
+  @override
+  String get auth_error_invalidEmail => 'Invalid email address';
+
+  @override
+  String get auth_error_tooManyRequests =>
+      'Too many attempts, please try later';
+
+  @override
+  String get auth_error_network => 'Network connection error';
+
+  @override
+  String get auth_error_invalidInvitation => 'Invalid invitation code';
+
+  @override
+  String get auth_error_notWhitelisted => 'Email is not whitelisted';
+
+  @override
+  String get auth_error_loginFailed => 'Login failed';
+
+  @override
+  String get auth_error_unknown => 'An unexpected error occurred';
 
   @override
   String get nav_home => 'Home';
@@ -1453,6 +1524,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statistics_totalTasks => 'Total Tasks';
 
   @override
+  String get statistics_totalAssignments => 'Assignments';
+
+  @override
   String get statistics_completed => 'Completed';
 
   @override
@@ -1902,4 +1976,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get manager_canCreateOnlyWithGroups =>
       'You can only create tasks when at least one group is assigned to you, or when you are granted permission to assign to all employees.';
+
+  @override
+  String get manager_myTasks => 'My Tasks';
+
+  @override
+  String get manager_taskManagement => 'Task Management';
+
+  @override
+  String get notes_writeReply => 'Write your reply...';
+
+  @override
+  String notes_notesOf(String name) {
+    return '$name\'s Notes';
+  }
+
+  @override
+  String get notes_notesSingular => 'note';
+
+  @override
+  String get notes_noNotesYet => 'No notes yet';
+
+  @override
+  String get notes_startConversation =>
+      'Start the conversation by sending a note';
+
+  @override
+  String get notes_header => 'Notes';
+
+  @override
+  String get date_formatAM => 'AM';
+
+  @override
+  String get date_formatPM => 'PM';
+
+  @override
+  String get task_noLabelsAvailableShort => 'No labels available';
+
+  @override
+  String get task_noGroupsAvailableShort => 'No groups available';
 }

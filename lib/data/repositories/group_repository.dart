@@ -36,10 +36,11 @@ class GroupRepository {
         .map((doc) => doc.exists ? GroupModel.fromFirestore(doc) : null);
   }
 
-  /// Get all groups
+  /// Get all groups (limited to 30 for performance)
   Future<List<GroupModel>> getAllGroups() async {
     final snapshot = await _firestoreService.groupsCollection
         .orderBy(FirebaseConstants.groupName)
+        .limit(30) // Safety limit for free tier
         .get();
 
     return snapshot.docs.map((doc) => GroupModel.fromFirestore(doc)).toList();

@@ -29,7 +29,10 @@ mixin _$AssignmentModel {
   DateTime? get apologizedAt => throw _privateConstructorUsedError;
   DateTime? get overdueAt => throw _privateConstructorUsedError;
   String? get markedDoneBy => throw _privateConstructorUsedError;
-  String? get attachmentUrl => throw _privateConstructorUsedError;
+  String? get attachmentUrl =>
+      throw _privateConstructorUsedError; // Denormalized fields for performance (avoid extra fetches)
+  String? get taskTitle => throw _privateConstructorUsedError;
+  String? get userName => throw _privateConstructorUsedError;
   DateTime get scheduledDate => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
 
@@ -60,6 +63,8 @@ abstract class $AssignmentModelCopyWith<$Res> {
       DateTime? overdueAt,
       String? markedDoneBy,
       String? attachmentUrl,
+      String? taskTitle,
+      String? userName,
       DateTime scheduledDate,
       DateTime createdAt});
 }
@@ -89,6 +94,8 @@ class _$AssignmentModelCopyWithImpl<$Res, $Val extends AssignmentModel>
     Object? overdueAt = freezed,
     Object? markedDoneBy = freezed,
     Object? attachmentUrl = freezed,
+    Object? taskTitle = freezed,
+    Object? userName = freezed,
     Object? scheduledDate = null,
     Object? createdAt = null,
   }) {
@@ -133,6 +140,14 @@ class _$AssignmentModelCopyWithImpl<$Res, $Val extends AssignmentModel>
           ? _value.attachmentUrl
           : attachmentUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      taskTitle: freezed == taskTitle
+          ? _value.taskTitle
+          : taskTitle // ignore: cast_nullable_to_non_nullable
+              as String?,
+      userName: freezed == userName
+          ? _value.userName
+          : userName // ignore: cast_nullable_to_non_nullable
+              as String?,
       scheduledDate: null == scheduledDate
           ? _value.scheduledDate
           : scheduledDate // ignore: cast_nullable_to_non_nullable
@@ -164,6 +179,8 @@ abstract class _$$AssignmentModelImplCopyWith<$Res>
       DateTime? overdueAt,
       String? markedDoneBy,
       String? attachmentUrl,
+      String? taskTitle,
+      String? userName,
       DateTime scheduledDate,
       DateTime createdAt});
 }
@@ -191,6 +208,8 @@ class __$$AssignmentModelImplCopyWithImpl<$Res>
     Object? overdueAt = freezed,
     Object? markedDoneBy = freezed,
     Object? attachmentUrl = freezed,
+    Object? taskTitle = freezed,
+    Object? userName = freezed,
     Object? scheduledDate = null,
     Object? createdAt = null,
   }) {
@@ -235,6 +254,14 @@ class __$$AssignmentModelImplCopyWithImpl<$Res>
           ? _value.attachmentUrl
           : attachmentUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      taskTitle: freezed == taskTitle
+          ? _value.taskTitle
+          : taskTitle // ignore: cast_nullable_to_non_nullable
+              as String?,
+      userName: freezed == userName
+          ? _value.userName
+          : userName // ignore: cast_nullable_to_non_nullable
+              as String?,
       scheduledDate: null == scheduledDate
           ? _value.scheduledDate
           : scheduledDate // ignore: cast_nullable_to_non_nullable
@@ -261,6 +288,8 @@ class _$AssignmentModelImpl extends _AssignmentModel {
       this.overdueAt,
       this.markedDoneBy,
       this.attachmentUrl,
+      this.taskTitle,
+      this.userName,
       required this.scheduledDate,
       required this.createdAt})
       : super._();
@@ -288,6 +317,11 @@ class _$AssignmentModelImpl extends _AssignmentModel {
   final String? markedDoneBy;
   @override
   final String? attachmentUrl;
+// Denormalized fields for performance (avoid extra fetches)
+  @override
+  final String? taskTitle;
+  @override
+  final String? userName;
   @override
   final DateTime scheduledDate;
   @override
@@ -295,7 +329,7 @@ class _$AssignmentModelImpl extends _AssignmentModel {
 
   @override
   String toString() {
-    return 'AssignmentModel(id: $id, taskId: $taskId, userId: $userId, status: $status, apologizeMessage: $apologizeMessage, completedAt: $completedAt, apologizedAt: $apologizedAt, overdueAt: $overdueAt, markedDoneBy: $markedDoneBy, attachmentUrl: $attachmentUrl, scheduledDate: $scheduledDate, createdAt: $createdAt)';
+    return 'AssignmentModel(id: $id, taskId: $taskId, userId: $userId, status: $status, apologizeMessage: $apologizeMessage, completedAt: $completedAt, apologizedAt: $apologizedAt, overdueAt: $overdueAt, markedDoneBy: $markedDoneBy, attachmentUrl: $attachmentUrl, taskTitle: $taskTitle, userName: $userName, scheduledDate: $scheduledDate, createdAt: $createdAt)';
   }
 
   @override
@@ -319,6 +353,10 @@ class _$AssignmentModelImpl extends _AssignmentModel {
                 other.markedDoneBy == markedDoneBy) &&
             (identical(other.attachmentUrl, attachmentUrl) ||
                 other.attachmentUrl == attachmentUrl) &&
+            (identical(other.taskTitle, taskTitle) ||
+                other.taskTitle == taskTitle) &&
+            (identical(other.userName, userName) ||
+                other.userName == userName) &&
             (identical(other.scheduledDate, scheduledDate) ||
                 other.scheduledDate == scheduledDate) &&
             (identical(other.createdAt, createdAt) ||
@@ -339,6 +377,8 @@ class _$AssignmentModelImpl extends _AssignmentModel {
       overdueAt,
       markedDoneBy,
       attachmentUrl,
+      taskTitle,
+      userName,
       scheduledDate,
       createdAt);
 
@@ -371,6 +411,8 @@ abstract class _AssignmentModel extends AssignmentModel {
       final DateTime? overdueAt,
       final String? markedDoneBy,
       final String? attachmentUrl,
+      final String? taskTitle,
+      final String? userName,
       required final DateTime scheduledDate,
       required final DateTime createdAt}) = _$AssignmentModelImpl;
   const _AssignmentModel._() : super._();
@@ -397,7 +439,12 @@ abstract class _AssignmentModel extends AssignmentModel {
   @override
   String? get markedDoneBy;
   @override
-  String? get attachmentUrl;
+  String?
+      get attachmentUrl; // Denormalized fields for performance (avoid extra fetches)
+  @override
+  String? get taskTitle;
+  @override
+  String? get userName;
   @override
   DateTime get scheduledDate;
   @override

@@ -7,6 +7,7 @@ import '../../features/auth/bloc/auth_bloc.dart';
 import '../../features/auth/pages/login_page.dart';
 import '../../features/auth/pages/register_page.dart';
 import '../../features/auth/pages/verify_email_page.dart';
+import '../../features/auth/pages/forgot_password_page.dart';
 import '../../features/auth/pages/splash_page.dart';
 import '../../features/admin/home/pages/admin_home_page.dart';
 import '../../features/admin/statistics/pages/statistics_page.dart';
@@ -75,6 +76,11 @@ abstract final class AppRouter {
           final email = state.uri.queryParameters['email'] ?? '';
           return VerifyEmailPage(email: email);
         },
+      ),
+      GoRoute(
+        path: Routes.forgotPassword,
+        name: RouteNames.forgotPassword,
+        builder: (context, state) => const ForgotPasswordPage(),
       ),
 
       // ============================================
@@ -314,6 +320,7 @@ abstract final class AppRouter {
     final isAuthRoute = state.matchedLocation == Routes.login ||
         state.matchedLocation == Routes.register ||
         state.matchedLocation == Routes.verifyEmail ||
+        state.matchedLocation == Routes.forgotPassword ||
         state.matchedLocation == Routes.splash;
 
     // Still checking auth, stay on splash

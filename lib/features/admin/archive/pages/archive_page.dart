@@ -149,28 +149,18 @@ class _ArchivedTaskCardState extends State<_ArchivedTaskCard> {
       context: context,
       backgroundColor: context.colors.surface,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
       ),
-      builder: (bottomSheetContext) => SafeArea(
-        child: SingleChildScrollView(
+      builder: (bottomSheetContext) => SingleChildScrollView(
+        child: Container(
           padding: AppSpacing.dialogPadding,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: context.colors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
               // Title
               Text(
                 l10n.archive_publishTask,

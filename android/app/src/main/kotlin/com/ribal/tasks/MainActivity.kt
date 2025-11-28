@@ -1,4 +1,4 @@
-package com.example.ribal
+package com.ribal.tasks
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../../app/di/injection.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/widgets/animated/animated_count.dart';
 import '../../../../../core/widgets/buttons/ribal_button.dart';
 import '../../../../../core/widgets/feedback/empty_state.dart';
 import '../../../../../core/widgets/inputs/ribal_text_field.dart';
@@ -36,72 +37,121 @@ class _WhitelistPageContent extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.whitelist_title),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        actions: [
+          // Delete all registered button
+          BlocBuilder<WhitelistBloc, WhitelistState>(
+            builder: (context, state) {
+              if (state.registeredCount == 0) return const SizedBox.shrink();
+
+              return IconButton(
+                icon: const Icon(Icons.delete_sweep),
+                tooltip: 'حذف جميع المسجلين',
+                onPressed: () => _showDeleteAllRegisteredDialog(context, state.registeredCount),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
             child: _SearchField(),
           ),
-        ),
-      ),
-      body: BlocConsumer<WhitelistBloc, WhitelistState>(
-        listener: (context, state) {
-          if (state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.errorMessage!),
-                backgroundColor: AppColors.error,
-              ),
-            );
-          }
-          if (state.successMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.successMessage!),
-                backgroundColor: AppColors.success,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state.isLoading && state.entries.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          const SizedBox(height: AppSpacing.sm),
+          // Filter chips
+          const _FilterSection(),
+          const SizedBox(height: AppSpacing.sm),
+          // List
+          Expanded(
+            child: BlocConsumer<WhitelistBloc, WhitelistState>(
+              listener: (context, state) {
+                if (state.errorMessage != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.errorMessage!),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+                if (state.successMessage != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.successMessage!),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              },
+              builder: (context, state) {
+                if (state.isLoading && state.entries.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          if (state.filteredEntries.isEmpty) {
-            if (state.searchQuery.isNotEmpty) {
-              return EmptyState(
-                icon: Icons.search_off,
-                title: l10n.common_no_results,
-                message: l10n.whitelist_noEntriesMatchingSearch(state.searchQuery),
-              );
-            }
-            return EmptyState(
-              icon: Icons.verified_user_outlined,
-              title: l10n.whitelist_noEntries,
-              message: l10n.whitelist_description,
-            );
-          }
+                if (state.filteredEntries.isEmpty) {
+                  if (state.searchQuery.isNotEmpty) {
+                    return EmptyState(
+                      icon: Icons.search_off,
+                      title: l10n.common_no_results,
+                      message: l10n.whitelist_noEntriesMatchingSearch(state.searchQuery),
+                    );
+                  }
+                  return EmptyState(
+                    icon: Icons.verified_user_outlined,
+                    title: l10n.whitelist_noEntries,
+                    message: l10n.whitelist_description,
+                  );
+                }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              context.read<WhitelistBloc>().add(const WhitelistLoadRequested());
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: state.filteredEntries.length,
-              separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, index) {
-                final entry = state.filteredEntries[index];
-                return _WhitelistEntryCard(entry: entry);
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<WhitelistBloc>().add(const WhitelistLoadRequested());
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    itemCount: state.filteredEntries.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (context, index) {
+                      final entry = state.filteredEntries[index];
+                      return _WhitelistEntryCard(entry: entry);
+                    },
+                  ),
+                );
               },
             ),
-          );
-        },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(context),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showDeleteAllRegisteredDialog(BuildContext context, int count) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف جميع المسجلين'),
+        content: Text('هل أنت متأكد من حذف $count بريد إلكتروني مسجل من القائمة البيضاء؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<WhitelistBloc>().add(
+                const WhitelistDeleteAllRegisteredRequested(),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('حذف الكل'),
+          ),
+        ],
       ),
     );
   }
@@ -142,6 +192,134 @@ class _WhitelistPageContent extends StatelessWidget {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterSection extends StatelessWidget {
+  const _FilterSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<WhitelistBloc, WhitelistState>(
+      builder: (context, state) {
+        final isLoading = state.isLoading && state.entries.isEmpty;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _FilterChip(
+                  label: 'الكل',
+                  count: state.allCount,
+                  isLoading: isLoading,
+                  color: AppColors.primary,
+                  isSelected: state.filterStatus == WhitelistFilter.all,
+                  onTap: isLoading
+                      ? null
+                      : () => context
+                          .read<WhitelistBloc>()
+                          .add(const WhitelistFilterChanged(filter: WhitelistFilter.all)),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                _FilterChip(
+                  label: 'مسجل',
+                  count: state.registeredCount,
+                  isLoading: isLoading,
+                  color: AppColors.success,
+                  isSelected: state.filterStatus == WhitelistFilter.registered,
+                  onTap: isLoading
+                      ? null
+                      : () => context.read<WhitelistBloc>().add(
+                          const WhitelistFilterChanged(filter: WhitelistFilter.registered)),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                _FilterChip(
+                  label: 'غير مسجل',
+                  count: state.notRegisteredCount,
+                  isLoading: isLoading,
+                  color: AppColors.warning,
+                  isSelected: state.filterStatus == WhitelistFilter.notRegistered,
+                  onTap: isLoading
+                      ? null
+                      : () => context.read<WhitelistBloc>().add(
+                          const WhitelistFilterChanged(filter: WhitelistFilter.notRegistered)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool isLoading;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.count,
+    required this.isLoading,
+    required this.color,
+    this.isSelected = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
+      color: isSelected ? color : context.colors.textSecondary,
+      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+    );
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.smd,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.15) : context.colors.surface,
+          borderRadius: AppSpacing.borderRadiusFull,
+          border: Border.all(
+            color: isSelected ? color : context.colors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Color indicator dot
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(label, style: textStyle),
+            Text(' (', style: textStyle),
+            AnimatedStatCount(
+              isLoading: isLoading,
+              count: count,
+              style: textStyle,
+            ),
+            Text(')', style: textStyle),
+          ],
         ),
       ),
     );
@@ -216,8 +394,8 @@ class _WhitelistEntryCard extends StatelessWidget {
               borderRadius: AppSpacing.borderRadiusSm,
             ),
             child: Icon(
-              Icons.person_outline,
-              color: roleColor,
+              entry.isRegistered ? Icons.check_circle : Icons.person_outline,
+              color: entry.isRegistered ? AppColors.success : roleColor,
               size: AppSpacing.iconLg,
             ),
           ),
@@ -252,6 +430,29 @@ class _WhitelistEntryCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
+                    if (entry.isRegistered)
+                      Container(
+                        padding: AppSpacing.chipPadding,
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.15),
+                          borderRadius: AppSpacing.borderRadiusFull,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.check_circle, size: 12, color: AppColors.success),
+                            const SizedBox(width: 4),
+                            Text(
+                              'مسجل',
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const Spacer(),
                     Text(
                       dateFormat.format(entry.createdAt),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(

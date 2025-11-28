@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/di/injection.dart';
 import '../../../data/models/user_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -147,6 +148,7 @@ class _NotesSectionContentState extends State<_NotesSectionContent> {
               // Input
               NoteInput(
                 isSending: state.isSending,
+                hintText: AppLocalizations.of(context)!.notes_writeReply,
                 onSend: (message) {
                   context.read<NotesBloc>().add(NoteSendRequested(
                         assignmentId: widget.assignmentId,
@@ -168,6 +170,8 @@ class _NotesSectionContentState extends State<_NotesSectionContent> {
   }
 
   Widget _buildHeader(NotesState state) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -182,7 +186,7 @@ class _NotesSectionContentState extends State<_NotesSectionContent> {
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            'الملاحظات',
+            l10n.notes_header,
             style: AppTypography.titleMedium.copyWith(
               fontWeight: FontWeight.w600,
               color: context.colors.textPrimary,

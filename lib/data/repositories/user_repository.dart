@@ -63,9 +63,6 @@ class UserRepository {
   Future<Map<String, UserModel>> getUsersByIds(List<String> userIds) async {
     if (userIds.isEmpty) return {};
 
-    final overallStart = DateTime.now();
-    debugPrint('[UserRepository] 👥 getUsersByIds() V2 started - ${userIds.length} users');
-
     final users = <String, UserModel>{};
     final cachedUserIds = <String>[];
     final staleUserIds = <String>[];
@@ -86,13 +83,8 @@ class UserRepository {
       }
     }
 
-    debugPrint('[UserRepository] Cache status: ${cachedUserIds.length} fresh, ${staleUserIds.length} stale');
-
     // Read cached users from Firebase cache (instant!)
     if (cachedUserIds.isNotEmpty) {
-      final cacheReadStart = DateTime.now();
-      debugPrint('[UserRepository] 📖 Reading ${cachedUserIds.length} users from Firebase CACHE');
-
       try {
         for (var i = 0; i < cachedUserIds.length; i += 10) {
           final batch = cachedUserIds.skip(i).take(10).toList();
@@ -101,12 +93,10 @@ class UserRepository {
               .get(const GetOptions(source: Source.cache)); // 🔥 CACHE-ONLY
 
           for (final doc in snapshot.docs) {
-            users[doc.id] = UserModel.fromFirestore(doc);
+            final user = UserModel.fromFirestore(doc);
+            users[doc.id] = user;
           }
         }
-
-        final duration = DateTime.now().difference(cacheReadStart);
-        debugPrint('[UserRepository] ✅ Loaded ${users.length} users from Firebase CACHE in ${duration.inMilliseconds}ms');
       } catch (e) {
         debugPrint('[UserRepository] ⚠️ Firebase cache read failed: $e');
         // Add failed IDs back to stale list
@@ -116,9 +106,6 @@ class UserRepository {
 
     // Fetch stale users from server
     if (staleUserIds.isNotEmpty) {
-      final serverFetchStart = DateTime.now();
-      debugPrint('[UserRepository] 🌐 Fetching ${staleUserIds.length} users from Firebase SERVER');
-
       for (var i = 0; i < staleUserIds.length; i += 10) {
         final batch = staleUserIds.skip(i).take(10).toList();
         final snapshot = await _firestoreService.usersCollection
@@ -126,7 +113,8 @@ class UserRepository {
             .get(const GetOptions(source: Source.server)); // 🌐 SERVER FETCH
 
         for (final doc in snapshot.docs) {
-          users[doc.id] = UserModel.fromFirestore(doc);
+          final user = UserModel.fromFirestore(doc);
+          users[doc.id] = user;
 
           // Mark individual user as fresh
           await _cacheService.put(
@@ -136,13 +124,7 @@ class UserRepository {
           );
         }
       }
-
-      final duration = DateTime.now().difference(serverFetchStart);
-      debugPrint('[UserRepository] ✅ Fetched ${staleUserIds.length} users from SERVER in ${duration.inMilliseconds}ms');
     }
-
-    final totalDuration = DateTime.now().difference(overallStart);
-    debugPrint('[UserRepository] 🎯 Total: Loaded ${users.length} users in ${totalDuration.inMilliseconds}ms (${cachedUserIds.length} cached, ${staleUserIds.length} fetched)');
 
     return users;
   }
@@ -154,10 +136,11 @@ class UserRepository {
         .map((doc) => doc.exists ? UserModel.fromFirestore(doc) : null);
   }
 
-  /// Get all users
+  /// Get all users (limited to 200 for performance)
   Future<List<UserModel>> getAllUsers() async {
     final snapshot = await _firestoreService.usersCollection
         .orderBy(FirebaseConstants.userCreatedAt, descending: true)
+        .limit(200) // Safety limit for free tier
         .get();
 
     return snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
@@ -172,20 +155,22 @@ class UserRepository {
             snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList());
   }
 
-  /// Get users by role
+  /// Get users by role (limited to 100 for performance)
   Future<List<UserModel>> getUsersByRole(UserRole role) async {
     final snapshot = await _firestoreService.usersCollection
         .where(FirebaseConstants.userRole, isEqualTo: role.name)
         .orderBy(FirebaseConstants.userCreatedAt, descending: true)
+        .limit(100) // Safety limit for free tier
         .get();
 
     return snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
   }
 
-  /// Get users by group
+  /// Get users by group (limited to 50 for performance)
   Future<List<UserModel>> getUsersByGroup(String groupId) async {
     final snapshot = await _firestoreService.usersCollection
         .where(FirebaseConstants.userGroupId, isEqualTo: groupId)
+        .limit(50) // Safety limit for free tier
         .get();
 
     return snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
@@ -362,6 +347,22 @@ class UserRepository {
         .count()
         .get();
     return snapshot.count ?? 0;
+  }
+
+  /// Delete user (Firestore document only - Auth deletion handled by Cloud Functions)
+  /// Note: Firebase Auth user should be deleted separately via admin SDK or Cloud Functions
+  Future<void> deleteUser(String userId) async {
+    debugPrint('[UserRepository] 🗑️  Deleting user: $userId');
+
+    // Delete user document from Firestore
+    await _firestoreService.deleteDocument(
+      _firestoreService.userDoc(userId),
+    );
+
+    // Invalidate caches
+    await _invalidateUserCaches();
+
+    debugPrint('[UserRepository] ✅ User deleted: $userId');
   }
 
   // ===========================================

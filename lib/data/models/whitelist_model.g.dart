@@ -13,6 +13,10 @@ _$WhitelistModelImpl _$$WhitelistModelImplFromJson(Map<String, dynamic> json) =>
       role: $enumDecode(_$UserRoleEnumMap, json['role']),
       createdBy: json['createdBy'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      isRegistered: json['isRegistered'] as bool? ?? false,
+      registeredAt: json['registeredAt'] == null
+          ? null
+          : DateTime.parse(json['registeredAt'] as String),
     );
 
 Map<String, dynamic> _$$WhitelistModelImplToJson(
@@ -23,6 +27,8 @@ Map<String, dynamic> _$$WhitelistModelImplToJson(
       'role': _$UserRoleEnumMap[instance.role]!,
       'createdBy': instance.createdBy,
       'createdAt': instance.createdAt.toIso8601String(),
+      'isRegistered': instance.isRegistered,
+      'registeredAt': instance.registeredAt?.toIso8601String(),
     };
 
 const _$UserRoleEnumMap = {

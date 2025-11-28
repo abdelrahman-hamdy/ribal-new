@@ -25,6 +25,8 @@ mixin _$WhitelistModel {
   UserRole get role => throw _privateConstructorUsedError;
   String get createdBy => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
+  bool get isRegistered => throw _privateConstructorUsedError;
+  DateTime? get registeredAt => throw _privateConstructorUsedError;
 
   /// Serializes this WhitelistModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -47,7 +49,9 @@ abstract class $WhitelistModelCopyWith<$Res> {
       String email,
       UserRole role,
       String createdBy,
-      DateTime createdAt});
+      DateTime createdAt,
+      bool isRegistered,
+      DateTime? registeredAt});
 }
 
 /// @nodoc
@@ -70,6 +74,8 @@ class _$WhitelistModelCopyWithImpl<$Res, $Val extends WhitelistModel>
     Object? role = null,
     Object? createdBy = null,
     Object? createdAt = null,
+    Object? isRegistered = null,
+    Object? registeredAt = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -92,6 +98,14 @@ class _$WhitelistModelCopyWithImpl<$Res, $Val extends WhitelistModel>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime,
+      isRegistered: null == isRegistered
+          ? _value.isRegistered
+          : isRegistered // ignore: cast_nullable_to_non_nullable
+              as bool,
+      registeredAt: freezed == registeredAt
+          ? _value.registeredAt
+          : registeredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ) as $Val);
   }
 }
@@ -109,7 +123,9 @@ abstract class _$$WhitelistModelImplCopyWith<$Res>
       String email,
       UserRole role,
       String createdBy,
-      DateTime createdAt});
+      DateTime createdAt,
+      bool isRegistered,
+      DateTime? registeredAt});
 }
 
 /// @nodoc
@@ -130,6 +146,8 @@ class __$$WhitelistModelImplCopyWithImpl<$Res>
     Object? role = null,
     Object? createdBy = null,
     Object? createdAt = null,
+    Object? isRegistered = null,
+    Object? registeredAt = freezed,
   }) {
     return _then(_$WhitelistModelImpl(
       id: null == id
@@ -152,6 +170,14 @@ class __$$WhitelistModelImplCopyWithImpl<$Res>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime,
+      isRegistered: null == isRegistered
+          ? _value.isRegistered
+          : isRegistered // ignore: cast_nullable_to_non_nullable
+              as bool,
+      registeredAt: freezed == registeredAt
+          ? _value.registeredAt
+          : registeredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ));
   }
 }
@@ -164,7 +190,9 @@ class _$WhitelistModelImpl extends _WhitelistModel {
       required this.email,
       required this.role,
       required this.createdBy,
-      required this.createdAt})
+      required this.createdAt,
+      this.isRegistered = false,
+      this.registeredAt})
       : super._();
 
   factory _$WhitelistModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -180,10 +208,15 @@ class _$WhitelistModelImpl extends _WhitelistModel {
   final String createdBy;
   @override
   final DateTime createdAt;
+  @override
+  @JsonKey()
+  final bool isRegistered;
+  @override
+  final DateTime? registeredAt;
 
   @override
   String toString() {
-    return 'WhitelistModel(id: $id, email: $email, role: $role, createdBy: $createdBy, createdAt: $createdAt)';
+    return 'WhitelistModel(id: $id, email: $email, role: $role, createdBy: $createdBy, createdAt: $createdAt, isRegistered: $isRegistered, registeredAt: $registeredAt)';
   }
 
   @override
@@ -197,13 +230,17 @@ class _$WhitelistModelImpl extends _WhitelistModel {
             (identical(other.createdBy, createdBy) ||
                 other.createdBy == createdBy) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.isRegistered, isRegistered) ||
+                other.isRegistered == isRegistered) &&
+            (identical(other.registeredAt, registeredAt) ||
+                other.registeredAt == registeredAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, email, role, createdBy, createdAt);
+  int get hashCode => Object.hash(runtimeType, id, email, role, createdBy,
+      createdAt, isRegistered, registeredAt);
 
   /// Create a copy of WhitelistModel
   /// with the given fields replaced by the non-null parameter values.
@@ -228,7 +265,9 @@ abstract class _WhitelistModel extends WhitelistModel {
       required final String email,
       required final UserRole role,
       required final String createdBy,
-      required final DateTime createdAt}) = _$WhitelistModelImpl;
+      required final DateTime createdAt,
+      final bool isRegistered,
+      final DateTime? registeredAt}) = _$WhitelistModelImpl;
   const _WhitelistModel._() : super._();
 
   factory _WhitelistModel.fromJson(Map<String, dynamic> json) =
@@ -244,6 +283,10 @@ abstract class _WhitelistModel extends WhitelistModel {
   String get createdBy;
   @override
   DateTime get createdAt;
+  @override
+  bool get isRegistered;
+  @override
+  DateTime? get registeredAt;
 
   /// Create a copy of WhitelistModel
   /// with the given fields replaced by the non-null parameter values.

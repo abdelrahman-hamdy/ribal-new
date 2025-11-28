@@ -35,6 +35,39 @@ class _AdminHomePageState extends State<AdminHomePage> {
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
+  String _formatDate(DateTime dateTime, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isArabic = l10n.localeName == 'ar';
+
+    // Day names
+    const daysAr = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const daysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final dayName = isArabic ? daysAr[dateTime.weekday % 7] : daysEn[dateTime.weekday % 7];
+
+    return '$dayName • ${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  String _formatTime(DateTime dateTime, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isArabic = l10n.localeName == 'ar';
+
+    int hour = dateTime.hour;
+    final isPM = hour >= 12;
+
+    // Convert to 12-hour format
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+
+    final period = isPM
+        ? (isArabic ? 'م' : 'PM')
+        : (isArabic ? 'ص' : 'AM');
+
+    return '$hour:${dateTime.minute.toString().padLeft(2, '0')} $period';
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -77,6 +110,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         final name = state is AuthAuthenticated
                             ? state.user.firstName
                             : l10n.user_roleAdmin;
+
                         return Text(
                           l10n.user_welcomeName(name),
                           style: AppTypography.displaySmall.copyWith(
@@ -86,11 +120,47 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       },
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      l10n.statistics_overview,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: context.colors.textSecondary,
-                      ),
+
+                    // Subheading with date/time
+                    Builder(
+                      builder: (context) {
+                        // Get KSA time (UTC+3)
+                        final now = DateTime.now().toUtc().add(const Duration(hours: 3));
+                        final dateText = _formatDate(now, context);
+                        final timeText = _formatTime(now, context);
+
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l10n.statistics_overview,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: context.colors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.08),
+                                borderRadius: AppSpacing.borderRadiusSm,
+                              ),
+                              child: Text(
+                                '$dateText • $timeText',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: AppSpacing.md),
 

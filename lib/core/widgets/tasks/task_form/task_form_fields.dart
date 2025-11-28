@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/models/group_model.dart';
 import '../../../../data/models/label_model.dart';
 import '../../../../data/models/task_model.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../theme/app_typography.dart';
@@ -52,17 +53,19 @@ class TaskFormFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Title field
         RibalTextField(
-          label: 'عنوان المهمة',
-          hint: 'أدخل عنوان المهمة',
+          label: l10n.task_title,
+          hint: l10n.task_titleHint,
           controller: titleController,
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return 'عنوان المهمة مطلوب';
+              return l10n.task_titleRequired;
             }
             return null;
           },
@@ -71,8 +74,8 @@ class TaskFormFields extends StatelessWidget {
 
         // Description field
         RibalTextField(
-          label: 'وصف المهمة',
-          hint: 'أدخل وصف المهمة',
+          label: l10n.task_description,
+          hint: l10n.task_descriptionHint,
           controller: descriptionController,
           maxLines: 4,
         ),
@@ -80,7 +83,7 @@ class TaskFormFields extends StatelessWidget {
 
         // Labels section
         Text(
-          'التصنيفات',
+          l10n.task_labels,
           style: AppTypography.titleMedium.copyWith(
             color: context.colors.textPrimary,
           ),
@@ -96,8 +99,8 @@ class TaskFormFields extends StatelessWidget {
 
         // Recurring toggle
         SwitchListTile(
-          title: const Text('مهمة متكررة'),
-          subtitle: const Text('إعادة جدولة المهمة يومياً'),
+          title: Text(l10n.task_recurring),
+          subtitle: Text(l10n.task_recurringLabel),
           value: isRecurring,
           onChanged: onRecurringChanged,
         ),
@@ -105,8 +108,8 @@ class TaskFormFields extends StatelessWidget {
 
         // Attachment required toggle
         SwitchListTile(
-          title: const Text('المرفق مطلوب'),
-          subtitle: const Text('يجب على المكلفين إرفاق ملف عند إتمام المهمة'),
+          title: Text(l10n.task_attachmentRequired),
+          subtitle: Text(l10n.task_attachmentRequiredSubtitle),
           value: attachmentRequired,
           onChanged: onAttachmentRequiredChanged,
         ),
@@ -114,7 +117,7 @@ class TaskFormFields extends StatelessWidget {
 
         // Assignment target section
         Text(
-          'تعيين المهمة إلى',
+          l10n.task_assignTo,
           style: AppTypography.titleMedium.copyWith(
             color: context.colors.textPrimary,
           ),
@@ -168,6 +171,7 @@ class _LabelsSelector extends StatelessWidget {
     }
 
     if (availableLabels.isEmpty) {
+      final l10n = AppLocalizations.of(context)!;
       return Container(
         padding: AppSpacing.cardPadding,
         decoration: BoxDecoration(
@@ -180,7 +184,7 @@ class _LabelsSelector extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                'لا توجد تصنيفات متاحة',
+                l10n.task_noLabelsAvailableShort,
                 style: AppTypography.bodySmall.copyWith(
                   color: context.colors.textSecondary,
                 ),
@@ -243,6 +247,8 @@ class _AssignmentSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: context.colors.border),
@@ -252,8 +258,8 @@ class _AssignmentSelector extends StatelessWidget {
         children: [
           if (showAssignToAll) ...[
             RadioListTile<AssigneeSelection>(
-              title: const Text('جميع المستخدمين'),
-              subtitle: const Text('سيتم تعيين المهمة لجميع الموظفين'),
+              title: Text(l10n.task_allUsers),
+              subtitle: Text(l10n.task_allUsersSubtitle),
               value: AssigneeSelection.all,
               groupValue: assigneeSelection,
               onChanged: (value) {
@@ -265,8 +271,8 @@ class _AssignmentSelector extends StatelessWidget {
             const Divider(height: 1),
           ],
           RadioListTile<AssigneeSelection>(
-            title: const Text('مجموعات محددة'),
-            subtitle: const Text('اختر المجموعات التي ستتلقى المهمة'),
+            title: Text(l10n.task_specificGroups),
+            subtitle: Text(l10n.task_specificGroupsSubtitle),
             value: AssigneeSelection.groups,
             groupValue: assigneeSelection,
             onChanged: (value) {
@@ -297,6 +303,8 @@ class _GroupSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     if (isLoading) {
       return const Center(
         child: Padding(
@@ -320,7 +328,7 @@ class _GroupSelector extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                'لا توجد مجموعات متاحة',
+                l10n.task_noGroupsAvailableShort,
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.warning,
                 ),
@@ -342,7 +350,7 @@ class _GroupSelector extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Text(
-              'اختر المجموعات:',
+              l10n.task_selectGroups,
               style: AppTypography.labelLarge.copyWith(
                 color: context.colors.textPrimary,
               ),

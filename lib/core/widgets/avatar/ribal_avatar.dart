@@ -160,11 +160,22 @@ class RibalAvatar extends StatelessWidget {
   /// Get the surface color based on role
   Color get roleSurfaceColor => AppColors.getRoleSurfaceColor(role.name);
 
+  /// Get the default avatar image path based on role
+  String get _defaultAvatarPath {
+    switch (role) {
+      case UserRole.admin:
+        return 'assets/images/admin-avatar.png';
+      case UserRole.manager:
+        return 'assets/images/manager-avatar.png';
+      case UserRole.employee:
+        return 'assets/images/employee-avatar.png';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final avatarSize = size.size;
-    final fontSize = size.fontSize;
-    final borderWidth = size.borderWidth;
+    final borderWidth = showBorder ? size.borderWidth : 2.0; // Always show border
 
     Widget avatar;
 
@@ -175,12 +186,11 @@ class RibalAvatar extends StatelessWidget {
         height: avatarSize,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: showBorder
-              ? Border.all(
-                  color: roleColor,
-                  width: borderWidth,
-                )
-              : null,
+          color: roleSurfaceColor, // Always show subtle background
+          border: Border.all(
+            color: roleColor,
+            width: borderWidth,
+          ),
         ),
         child: ClipOval(
           child: CachedNetworkImage(
@@ -188,43 +198,19 @@ class RibalAvatar extends StatelessWidget {
             width: avatarSize,
             height: avatarSize,
             fit: BoxFit.cover,
-            placeholder: (context, url) => _buildInitialsAvatar(
+            placeholder: (context, url) => _buildDefaultAvatar(
               avatarSize: avatarSize,
-              fontSize: fontSize,
               showLoading: true,
             ),
-            errorWidget: (context, url, error) => _buildInitialsAvatar(
+            errorWidget: (context, url, error) => _buildDefaultAvatar(
               avatarSize: avatarSize,
-              fontSize: fontSize,
             ),
           ),
         ),
       );
     } else {
-      avatar = Container(
-        width: avatarSize,
-        height: avatarSize,
-        decoration: BoxDecoration(
-          color: roleSurfaceColor,
-          shape: BoxShape.circle,
-          border: showBorder
-              ? Border.all(
-                  color: roleColor,
-                  width: borderWidth,
-                )
-              : null,
-        ),
-        child: Center(
-          child: Text(
-            initials,
-            style: AppTypography.labelLarge.copyWith(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: roleColor,
-            ),
-          ),
-        ),
-      );
+      // Use role-specific default image instead of initials
+      avatar = _buildDefaultAvatar(avatarSize: avatarSize);
     }
 
     if (onTap != null) {
@@ -238,36 +224,44 @@ class RibalAvatar extends StatelessWidget {
     return avatar;
   }
 
-  /// Build the initials avatar (used as placeholder/fallback)
-  Widget _buildInitialsAvatar({
+  /// Build the default avatar using role-specific image
+  Widget _buildDefaultAvatar({
     required double avatarSize,
-    required double fontSize,
     bool showLoading = false,
   }) {
+    final borderWidth = showBorder ? size.borderWidth : 2.0; // Always show border
+
     return Container(
       width: avatarSize,
       height: avatarSize,
       decoration: BoxDecoration(
-        color: roleSurfaceColor,
         shape: BoxShape.circle,
+        color: roleSurfaceColor, // Always show subtle background
+        border: Border.all(
+          color: roleColor,
+          width: borderWidth,
+        ),
       ),
-      child: Center(
+      child: ClipOval(
         child: showLoading
-            ? SizedBox(
-                width: avatarSize * 0.4,
-                height: avatarSize * 0.4,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(roleColor),
+            ? Container(
+                color: roleSurfaceColor,
+                child: Center(
+                  child: SizedBox(
+                    width: avatarSize * 0.4,
+                    height: avatarSize * 0.4,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(roleColor),
+                    ),
+                  ),
                 ),
               )
-            : Text(
-                initials,
-                style: AppTypography.labelLarge.copyWith(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: roleColor,
-                ),
+            : Image.asset(
+                _defaultAvatarPath,
+                width: avatarSize,
+                height: avatarSize,
+                fit: BoxFit.cover,
               ),
       ),
     );

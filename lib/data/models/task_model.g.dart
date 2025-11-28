@@ -31,6 +31,8 @@ _$TaskModelImpl _$$TaskModelImplFromJson(Map<String, dynamic> json) =>
               .toList() ??
           const [],
       createdBy: json['createdBy'] as String,
+      creatorName: json['creatorName'] as String?,
+      creatorEmail: json['creatorEmail'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -51,6 +53,8 @@ Map<String, dynamic> _$$TaskModelImplToJson(_$TaskModelImpl instance) =>
       'selectedGroupIds': instance.selectedGroupIds,
       'selectedUserIds': instance.selectedUserIds,
       'createdBy': instance.createdBy,
+      'creatorName': instance.creatorName,
+      'creatorEmail': instance.creatorEmail,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
     };

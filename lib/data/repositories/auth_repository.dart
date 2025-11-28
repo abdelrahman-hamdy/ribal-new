@@ -79,42 +79,58 @@ class AuthRepository {
     required String lastName,
     required UserRole role,
   }) async {
-    // Create Firebase Auth account
-    final credential = await _authService.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    User? createdUser;
 
-    if (credential.user == null) {
-      throw Exception('Failed to create user account');
+    try {
+      // Create Firebase Auth account
+      final credential = await _authService.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (credential.user == null) {
+        throw Exception('Failed to create user account');
+      }
+
+      createdUser = credential.user;
+      final userId = createdUser!.uid;
+      final now = DateTime.now();
+
+      // Create user document in Firestore
+      final user = UserModel(
+        id: userId,
+        firstName: firstName,
+        lastName: lastName,
+        email: email.toLowerCase().trim(),
+        role: role,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await _firestoreService.setDocument(
+        _firestoreService.userDoc(userId),
+        user.toFirestore(),
+      );
+
+      // Update display name
+      await _authService.updateDisplayName('$firstName $lastName');
+
+      // Send email verification
+      await _authService.sendEmailVerification();
+
+      return user;
+    } catch (e) {
+      // If anything fails after creating the auth account, delete it to avoid orphaned accounts
+      if (createdUser != null) {
+        try {
+          await createdUser.delete();
+          debugPrint('🔐 [AuthRepo] Cleaned up orphaned Firebase Auth account');
+        } catch (deleteError) {
+          debugPrint('🔐 [AuthRepo] Failed to delete orphaned account: $deleteError');
+        }
+      }
+      rethrow;
     }
-
-    final userId = credential.user!.uid;
-    final now = DateTime.now();
-
-    // Create user document in Firestore
-    final user = UserModel(
-      id: userId,
-      firstName: firstName,
-      lastName: lastName,
-      email: email.toLowerCase().trim(),
-      role: role,
-      createdAt: now,
-      updatedAt: now,
-    );
-
-    await _firestoreService.setDocument(
-      _firestoreService.userDoc(userId),
-      user.toFirestore(),
-    );
-
-    // Update display name
-    await _authService.updateDisplayName('$firstName $lastName');
-
-    // Send email verification
-    await _authService.sendEmailVerification();
-
-    return user;
   }
 
   /// Send email verification

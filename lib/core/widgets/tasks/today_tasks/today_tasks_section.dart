@@ -250,7 +250,7 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const TaskListSkeletonList(itemCount: 3);
+    return const TaskListSkeletonList(itemCount: 5);
   }
 }
 
@@ -289,18 +289,23 @@ class _TasksList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: tasks.length,
-      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
         final taskWithDetails = tasks[index];
-        // Format deadline from DateTime to Arabic time string
+        // Format deadline time with localized AM/PM
         final deadlineText = taskWithDetails.deadline != null
             ? TimeFormatter.formatTimeArabic(
                 '${taskWithDetails.deadline!.hour.toString().padLeft(2, '0')}:'
-                '${taskWithDetails.deadline!.minute.toString().padLeft(2, '0')}')
+                '${taskWithDetails.deadline!.minute.toString().padLeft(2, '0')}',
+                amLabel: l10n.date_formatAM,
+                pmLabel: l10n.date_formatPM,
+              )
             : '';
         return TaskListItem(
           task: taskWithDetails.task,

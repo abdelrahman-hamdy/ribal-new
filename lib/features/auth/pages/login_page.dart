@@ -9,6 +9,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/buttons/ribal_button.dart';
 import '../../../core/widgets/inputs/ribal_text_field.dart';
 import '../../../core/widgets/feedback/error_state.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 
 class LoginPage extends StatefulWidget {
@@ -43,6 +44,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
@@ -55,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
         } else if (state is AuthEmailNotVerified) {
           context.go('${Routes.verifyEmail}?email=${state.email}');
         } else if (state is AuthError) {
-          setState(() => _errorMessage = state.message);
+          setState(() => _errorMessage = _getLocalizedError(l10n, state.message));
         }
       },
       child: Scaffold(
@@ -74,11 +76,11 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       // Logo
                       _buildLogo(),
-                      const SizedBox(height: AppSpacing.xxl),
+                      const SizedBox(height: AppSpacing.xl),
 
                       // Title
                       Text(
-                        'تسجيل الدخول',
+                        l10n.auth_login,
                         style: AppTypography.displayMedium.copyWith(
                           color: context.colors.textPrimary,
                         ),
@@ -86,13 +88,13 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'أدخل بياناتك للدخول إلى حسابك',
+                        l10n.auth_loginSubtitle,
                         style: AppTypography.bodyMedium.copyWith(
                           color: context.colors.textSecondary,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.lg),
 
                       // Error message
                       if (_errorMessage != null) ...[
@@ -113,13 +115,33 @@ class _LoginPageState extends State<LoginPage> {
                         textInputAction: TextInputAction.done,
                         onEditingComplete: _handleLogin,
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.sm),
+
+                      // Forgot password link
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton(
+                          onPressed: () => context.go(Routes.forgotPassword),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            l10n.auth_forgotPassword,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
 
                       // Login button
                       BlocBuilder<AuthBloc, AuthState>(
                         builder: (context, state) {
                           return RibalButton(
-                            text: 'تسجيل الدخول',
+                            text: l10n.auth_login,
                             onPressed: _handleLogin,
                             isLoading: state is AuthLoading,
                           );
@@ -132,14 +154,14 @@ class _LoginPageState extends State<LoginPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'ليس لديك حساب؟',
+                            l10n.auth_noAccount,
                             style: AppTypography.bodyMedium.copyWith(
                               color: context.colors.textSecondary,
                             ),
                           ),
                           TextButton(
                             onPressed: () => context.go(Routes.register),
-                            child: const Text('إنشاء حساب'),
+                            child: Text(l10n.auth_register),
                           ),
                         ],
                       ),
@@ -155,12 +177,50 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildLogo() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
-      child: Image.asset(
-        'assets/images/rbal-logo.png',
-        width: 120,
-        height: 120,
+      child: Container(
+        padding: isDark ? const EdgeInsets.all(8) : null,
+        decoration: isDark
+            ? BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(12),
+              )
+            : null,
+        child: Image.asset(
+          'assets/images/rbal-logo.png',
+          width: 120,
+          height: 120,
+        ),
       ),
     );
+  }
+
+  String _getLocalizedError(AppLocalizations l10n, String errorCode) {
+    switch (errorCode) {
+      case 'user-not-found':
+        return l10n.auth_error_userNotFound;
+      case 'wrong-password':
+        return l10n.auth_error_wrongPassword;
+      case 'email-in-use':
+        return l10n.auth_error_emailInUse;
+      case 'weak-password':
+        return l10n.auth_error_weakPassword;
+      case 'invalid-email':
+        return l10n.auth_error_invalidEmail;
+      case 'too-many-requests':
+        return l10n.auth_error_tooManyRequests;
+      case 'network':
+        return l10n.auth_error_network;
+      case 'invalid-invitation':
+        return l10n.auth_error_invalidInvitation;
+      case 'not-whitelisted':
+        return l10n.auth_error_notWhitelisted;
+      case 'login-failed':
+        return l10n.auth_error_loginFailed;
+      default:
+        return l10n.auth_error_unknown;
+    }
   }
 }

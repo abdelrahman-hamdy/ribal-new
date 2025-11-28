@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/constants/firebase_constants.dart';
@@ -84,5 +85,46 @@ class WhitelistRepository {
     for (final doc in snapshot.docs) {
       await doc.reference.delete();
     }
+  }
+
+  /// Mark email as registered
+  Future<void> markEmailAsRegistered(String email) async {
+    final normalizedEmail = email.toLowerCase().trim();
+    final snapshot = await _firestoreService.whitelistCollection
+        .where(FirebaseConstants.whitelistEmail, isEqualTo: normalizedEmail)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      await snapshot.docs.first.reference.update({
+        'isRegistered': true,
+        'registeredAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  /// Get count of registered emails
+  Future<int> getRegisteredEmailsCount() async {
+    final snapshot = await _firestoreService.whitelistCollection
+        .where('isRegistered', isEqualTo: true)
+        .count()
+        .get();
+
+    return snapshot.count ?? 0;
+  }
+
+  /// Delete all registered emails from whitelist
+  Future<int> deleteAllRegisteredEmails() async {
+    final snapshot = await _firestoreService.whitelistCollection
+        .where('isRegistered', isEqualTo: true)
+        .get();
+
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    await batch.commit();
+    return snapshot.docs.length;
   }
 }

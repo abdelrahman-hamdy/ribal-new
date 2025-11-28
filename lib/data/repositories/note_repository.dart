@@ -77,9 +77,11 @@ class NoteRepository {
   }
 
   /// Get notes for an assignment (one-time fetch)
+  /// Get notes for assignment (limited to 100 for performance)
   Future<List<NoteModel>> getNotesForAssignment(String assignmentId) async {
     final snapshot = await _notesCollection(assignmentId)
         .orderBy(FirebaseConstants.noteCreatedAt, descending: false)
+        .limit(100) // Safety limit for free tier
         .get();
 
     return snapshot.docs.map((doc) => NoteModel.fromFirestore(doc)).toList();

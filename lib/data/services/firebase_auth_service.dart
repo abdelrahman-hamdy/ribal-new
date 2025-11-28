@@ -45,7 +45,33 @@ class FirebaseAuthService {
 
   /// Send email verification
   Future<void> sendEmailVerification() async {
-    await _auth.currentUser?.sendEmailVerification();
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Configure action code settings for email verification
+    // This ensures the email is sent with a proper return URL
+    final actionCodeSettings = ActionCodeSettings(
+      // URL to redirect to after email verification
+      // Use your app's URL scheme or web URL
+      url: 'https://ribal-4ac8c.firebaseapp.com/__/auth/action',
+      // This must be true for mobile apps
+      handleCodeInApp: true,
+      // iOS bundle ID
+      iOSBundleId: 'com.ribal.app',
+      // Android package name
+      androidPackageName: 'com.ribal.app',
+      // Whether to install the app if not already installed
+      androidInstallApp: true,
+      // Minimum Android version
+      androidMinimumVersion: '21',
+    );
+
+    try {
+      await user.sendEmailVerification(actionCodeSettings);
+    } catch (e) {
+      // If ActionCodeSettings fails, try without it as fallback
+      await user.sendEmailVerification();
+    }
   }
 
   /// Reload current user (to check email verification status)

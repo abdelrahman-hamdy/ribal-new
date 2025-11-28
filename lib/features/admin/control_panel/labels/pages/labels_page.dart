@@ -232,22 +232,6 @@ class _LabelCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Color indicator
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: labelColor.surfaceColor,
-              borderRadius: AppSpacing.borderRadiusSm,
-              border: Border.all(color: labelColor.color, width: 2),
-            ),
-            child: Icon(
-              Icons.label,
-              color: labelColor.color,
-              size: AppSpacing.iconLg,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
           // Info
           Expanded(
             child: Column(
@@ -323,18 +307,27 @@ class _LabelCard extends StatelessWidget {
                 },
                 tooltip: label.isActive ? l10n.label_deactivate : l10n.label_activate,
                 color: label.isActive ? context.colors.textSecondary : context.colors.textTertiary,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 20),
                 onPressed: () => _showEditDialog(context, label),
                 tooltip: l10n.common_edit,
                 color: AppColors.primary,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () => _confirmDelete(context, label),
                 tooltip: l10n.common_delete,
                 color: AppColors.error,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
             ],
           ),
