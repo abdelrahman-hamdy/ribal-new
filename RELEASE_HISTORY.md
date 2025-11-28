@@ -11,6 +11,32 @@ All notable releases and patches for the Ribal Flutter app are documented in thi
 
 ## Releases
 
+### v2.0.0+13 (2025-01-XX) - Major Release
+
+**Type**: Major Version Release with Shorebird Code Push
+
+**Platform**: Android (Google Play), iOS (App Store)
+
+**Features**:
+- Complete Shorebird Code Push integration for OTA updates
+- Enhanced task management system
+- Improved Firebase integration and notifications
+- ProGuard optimization for Android
+- Production-ready FCM background handler
+- Automated CI/CD with CodeMagic
+
+**Technical**:
+- Flutter SDK: 3.19.0
+- Shorebird Code Push enabled
+- ProGuard rules optimized for Shorebird compatibility
+- iOS entitlements configured for push notifications
+- CodeMagic automation for releases and patches
+
+**Status**: 🚀 Ready for submission
+**Shorebird Track**: stable
+
+---
+
 ### v1.0.10+12 (2025-XX-XX) - Store Release
 
 **Type**: Initial Release with Shorebird Integration
