@@ -52,9 +52,9 @@ android {
             // Using release signing for Google Play Store
             signingConfig = signingConfigs.getByName("release")
 
-            // Enable aggressive optimization and obfuscation
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // TODO: Re-enable after resolving Play Core R8 issues
+            isMinifyEnabled = false
+            isShrinkResources = false
 
             // Use optimized ProGuard rules
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -80,4 +80,16 @@ dependencies {
 
     // Multidex support for large apps
     implementation("androidx.multidex:multidex:2.0.1")
+
+    // Play Core libraries for deferred components
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("com.google.android.play:feature-delivery:2.1.0")
+    implementation("com.google.android.gms:play-services-tasks:18.0.2")
+}
+
+// Fix task ordering issue between extractDeepLinksRelease and processReleaseGoogleServices
+afterEvaluate {
+    tasks.named("extractDeepLinksRelease").configure {
+        mustRunAfter("processReleaseGoogleServices")
+    }
 }
