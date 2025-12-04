@@ -49,12 +49,13 @@ class AssignmentRepository {
       keysToDelete.add('assignments_tasks_batch_${dateKey}_timestamp');
     }
 
-    // Individual assignment cache timestamp
+    // Individual assignment cache timestamp AND data
     if (specificAssignmentId != null) {
       keysToDelete.add('${specificAssignmentId}_timestamp');
+      keysToDelete.add(specificAssignmentId); // Also delete the actual cached assignment data
     }
 
-    // Delete only the affected timestamp keys (data stays in Firebase cache)
+    // Delete the affected cache keys (timestamps and specific assignment data)
     for (final key in keysToDelete) {
       await _cacheService.delete(
         boxName: HiveCacheService.boxAssignments,

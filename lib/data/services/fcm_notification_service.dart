@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:injectable/injectable.dart';
 
@@ -27,51 +26,37 @@ class FCMNotificationService {
     required Function(Map<String, dynamic> payload) onNotificationTapped,
     required Function(String? token) onTokenReceived,
   }) async {
-    debugPrint('🔔 Initializing FCM Notification Service...');
-
     // Initialize local notifications
     await _initializeLocalNotifications(onNotificationTapped);
 
     // Request permissions
     final permissionGranted = await _requestPermission();
-    debugPrint('🔔 Permission granted: $permissionGranted');
-
-    if (!permissionGranted) {
-      debugPrint('⚠️ Notification permission denied');
-      return;
-    }
+    if (!permissionGranted) return;
 
     // Get and save FCM token
     final token = await getToken();
-    debugPrint('🔔 FCM Token: $token');
     onTokenReceived(token);
 
     // Listen to token refresh
     _messaging.onTokenRefresh.listen((newToken) {
-      debugPrint('🔔 FCM Token refreshed: $newToken');
       onTokenReceived(newToken);
     });
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('🔔 Foreground message received: ${message.messageId}');
       _showNotification(message);
     });
 
     // Handle notification taps (background/terminated)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('🔔 Notification tapped (background): ${message.messageId}');
       _handleNotificationTap(message, onNotificationTapped);
     });
 
     // Check for initial message (app opened from terminated state)
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      debugPrint('🔔 Initial message found: ${initialMessage.messageId}');
       _handleNotificationTap(initialMessage, onNotificationTapped);
     }
-
-    debugPrint('✅ FCM Notification Service initialized successfully');
   }
 
   /// Initialize local notifications plugin
@@ -96,13 +81,12 @@ class FCMNotificationService {
     await _localNotifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        debugPrint('🔔 Notification tapped: ${response.payload}');
         if (response.payload != null) {
           try {
             final payload = jsonDecode(response.payload!);
             onNotificationTapped(payload);
           } catch (e) {
-            debugPrint('❌ Error parsing notification payload: $e');
+            // Silently ignore parse errors
           }
         }
       },
@@ -115,8 +99,6 @@ class FCMNotificationService {
               AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_channel);
     }
-
-    debugPrint('✅ Local notifications initialized');
   }
 
   /// Request notification permissions
@@ -148,16 +130,30 @@ class FCMNotificationService {
   }
 
   /// Get FCM token
+  /// On iOS, waits for APNs token to be available before requesting FCM token
   Future<String?> getToken() async {
     try {
       if (Platform.isIOS) {
-        // For iOS, we need to get the APNs token first
-        final apnsToken = await _messaging.getAPNSToken();
-        debugPrint('🔔 APNs token: $apnsToken');
+        // For iOS, we MUST wait for the APNs token first
+        // The FCM token cannot be generated without it
+        String? apnsToken = await _messaging.getAPNSToken();
+
+        // If APNs token is null, wait and retry (it might not be available immediately)
+        if (apnsToken == null) {
+          // Wait up to 10 seconds for APNs token to become available
+          for (int i = 0; i < 10; i++) {
+            await Future.delayed(const Duration(seconds: 1));
+            apnsToken = await _messaging.getAPNSToken();
+            if (apnsToken != null) break;
+          }
+
+          // If still null after 10 seconds, return null
+          if (apnsToken == null) return null;
+        }
       }
+
       return await _messaging.getToken();
     } catch (e) {
-      debugPrint('❌ Error getting FCM token: $e');
       return null;
     }
   }
@@ -166,9 +162,8 @@ class FCMNotificationService {
   Future<void> deleteToken() async {
     try {
       await _messaging.deleteToken();
-      debugPrint('🔔 FCM token deleted');
     } catch (e) {
-      debugPrint('❌ Error deleting FCM token: $e');
+      // Silently ignore errors
     }
   }
 
@@ -176,9 +171,8 @@ class FCMNotificationService {
   Future<void> subscribeToTopic(String topic) async {
     try {
       await _messaging.subscribeToTopic(topic);
-      debugPrint('🔔 Subscribed to topic: $topic');
     } catch (e) {
-      debugPrint('❌ Error subscribing to topic: $e');
+      // Silently ignore errors
     }
   }
 
@@ -186,9 +180,8 @@ class FCMNotificationService {
   Future<void> unsubscribeFromTopic(String topic) async {
     try {
       await _messaging.unsubscribeFromTopic(topic);
-      debugPrint('🔔 Unsubscribed from topic: $topic');
     } catch (e) {
-      debugPrint('❌ Error unsubscribing from topic: $e');
+      // Silently ignore errors
     }
   }
 
@@ -224,8 +217,6 @@ class FCMNotificationService {
         ),
         payload: jsonEncode(message.data),
       );
-
-      debugPrint('🔔 Local notification shown: ${notification.title}');
     }
   }
 
@@ -253,19 +244,16 @@ class FCMNotificationService {
   Future<void> setBadgeCount(int count) async {
     if (Platform.isIOS) {
       // This requires additional native implementation
-      debugPrint('🔔 Badge count set to: $count');
     }
   }
 
   /// Clear all notifications
   Future<void> clearAllNotifications() async {
     await _localNotifications.cancelAll();
-    debugPrint('🔔 All notifications cleared');
   }
 
   /// Cancel specific notification
   Future<void> cancelNotification(int id) async {
     await _localNotifications.cancel(id);
-    debugPrint('🔔 Notification cancelled: $id');
   }
 }

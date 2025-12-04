@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'app/app.dart';
@@ -22,14 +21,7 @@ import 'firebase_options.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if not already initialized
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  debugPrint('🔔 Background message received: ${message.messageId}');
-  debugPrint('🔔 Title: ${message.notification?.title}');
-  debugPrint('🔔 Body: ${message.notification?.body}');
-  debugPrint('🔔 Data: ${message.data}');
-
-  // You can process the message here if needed
-  // For example, update local database, show notification, etc.
+  // Process background messages here if needed
 }
 
 Future<void> main() async {
@@ -69,17 +61,12 @@ Future<void> main() async {
 
     await fcmService.initialize(
       onNotificationTapped: (payload) async {
-        debugPrint('🔔 FCM notification tapped with payload: $payload');
-
         // Handle navigation based on deepLink in payload
         if (payload.containsKey('deepLink')) {
           final deepLink = payload['deepLink'] as String;
           final authState = authBloc.state;
 
-          if (authState is! AuthAuthenticated) {
-            debugPrint('⚠️ User not authenticated, skipping navigation');
-            return;
-          }
+          if (authState is! AuthAuthenticated) return;
 
           final userRole = authState.user.role;
           final String targetRoute;
@@ -114,20 +101,15 @@ Future<void> main() async {
 
           // Navigate using GoRouter (use push to maintain navigation stack)
           if (targetRoute.isNotEmpty) {
-            debugPrint('🔔 Navigating to: $targetRoute');
             AppRouter.router.push(targetRoute);
           }
         }
       },
       onTokenReceived: (token) async {
-        debugPrint('🔔 FCM Token received: $token');
-
-        if (token == null) {
-          debugPrint('⚠️ FCM token is null');
-          return;
-        }
+        if (token == null) return;
 
         // Save token to Firestore when user is authenticated
+        // Using fcmTokens array to support multi-device notifications
         final authState = authBloc.state;
         if (authState is AuthAuthenticated) {
           try {
@@ -135,22 +117,18 @@ Future<void> main() async {
                 .collection('users')
                 .doc(authState.user.id)
                 .update({
-              'fcmToken': token,
+              'fcmTokens': FieldValue.arrayUnion([token]),
               'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
             });
-            debugPrint('✅ FCM token saved to Firestore for user: ${authState.user.id}');
           } catch (e) {
-            debugPrint('❌ Error saving FCM token to Firestore: $e');
+            // Silently ignore errors
           }
-        } else {
-          debugPrint('⚠️ User not authenticated yet, token will be saved on login');
-          // Token will be saved when user logs in via auth_bloc
         }
+        // Token will be saved when user logs in via auth_bloc
       },
     );
-    debugPrint('✅ FCM Notification Service initialized');
   } catch (e) {
-    debugPrint('❌ Error initializing FCM: $e');
+    // Silently ignore FCM initialization errors
   }
 
   // Set system UI overlay style
@@ -163,23 +141,5 @@ Future<void> main() async {
     ),
   );
 
-  // Set up Bloc observer for debugging
-  Bloc.observer = AppBlocObserver();
-
   runApp(const RibalApp());
-}
-
-/// Bloc observer for logging state changes during development
-class AppBlocObserver extends BlocObserver {
-  @override
-  void onChange(BlocBase bloc, Change change) {
-    super.onChange(bloc, change);
-    debugPrint('${bloc.runtimeType} $change');
-  }
-
-  @override
-  void onError(BlocBase bloc, Object error, StackTrace stackTrace) {
-    debugPrint('${bloc.runtimeType} $error $stackTrace');
-    super.onError(bloc, error, stackTrace);
-  }
 }

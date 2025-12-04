@@ -71,7 +71,9 @@ class KsaTimezone {
   static DateTime startOfWeek() {
     final ksaNow = now();
     final weekday = ksaNow.weekday == 7 ? 0 : ksaNow.weekday; // Sunday = 0
-    return DateTime(ksaNow.year, ksaNow.month, ksaNow.day - weekday);
+    // Use subtract to avoid negative day numbers that could cause issues
+    final startOfToday = DateTime(ksaNow.year, ksaNow.month, ksaNow.day);
+    return startOfToday.subtract(Duration(days: weekday));
   }
 
   /// Get end of current week (Saturday) in KSA timezone
@@ -88,6 +90,10 @@ class KsaTimezone {
   /// Get end of current month in KSA timezone
   static DateTime endOfMonth() {
     final ksaNow = now();
-    return DateTime(ksaNow.year, ksaNow.month + 1, 1);
+    // Handle December correctly - month 12 + 1 = January of next year
+    final nextMonth = ksaNow.month == 12
+        ? DateTime(ksaNow.year + 1, 1, 1)
+        : DateTime(ksaNow.year, ksaNow.month + 1, 1);
+    return nextMonth;
   }
 }

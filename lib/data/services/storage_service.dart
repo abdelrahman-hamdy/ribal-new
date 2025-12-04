@@ -346,8 +346,13 @@ class StorageService {
         return 'بيانات غير صالحة';
       case 'unavailable':
         return 'الخدمة غير متوفرة حالياً. حاول مرة أخرى';
+      case 'failed-precondition':
+        return 'الخدمة غير جاهزة حالياً. يرجى المحاولة لاحقاً';
+      case 'internal':
+        return 'حدث خطأ داخلي. يرجى المحاولة مرة أخرى';
       default:
-        return 'حدث خطأ في الخدمة: $code';
+        // Never expose technical error codes to users
+        return 'حدث خطأ في الخدمة. يرجى المحاولة مرة أخرى';
     }
   }
 
@@ -370,8 +375,12 @@ class StorageService {
     if (lowerError.contains('signature')) {
       return 'خطأ في التحقق. حاول مرة أخرى';
     }
+    if (lowerError.contains('invalid_api_key') || lowerError.contains('invalid api key')) {
+      return 'خدمة الرفع غير متوفرة حالياً. يرجى المحاولة لاحقاً';
+    }
 
-    return 'حدث خطأ أثناء رفع الملف: $error';
+    // Never expose technical error messages to users
+    return 'حدث خطأ أثناء رفع الملف. يرجى المحاولة مرة أخرى';
   }
 }
 

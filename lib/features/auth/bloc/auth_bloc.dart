@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -274,6 +273,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
 
     try {
+      // Remove FCM token in background (fire-and-forget) to prevent ghost notifications
+      // Don't await to keep sign-out fast and responsive
+      _fcmService.getToken().then((token) {
+        if (token != null) {
+          _authRepository.removeFcmToken(token).catchError((_) {
+            // Silently ignore errors
+          });
+        }
+      }).catchError((_) {
+        // Silently ignore errors
+      });
+
       await _authSubscription?.cancel();
       await _authRepository.signOut();
       emit(const AuthUnauthenticated());
@@ -349,18 +360,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   /// Save FCM token to Firestore for push notifications
+  /// Uses fcmTokens array to support multi-device notifications
   Future<void> _saveFCMToken(String userId) async {
     try {
       final token = await _fcmService.getToken();
       if (token != null) {
-        await FirebaseFirestore.instance.collection('users').doc(userId).update({
-          'fcmToken': token,
-          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-        });
-        debugPrint('✅ FCM token saved to Firestore for user: $userId');
+        await _authRepository.updateFcmToken(token);
       }
     } catch (e) {
-      debugPrint('❌ Error saving FCM token: $e');
       // Don't throw - this is not critical for auth flow
     }
   }

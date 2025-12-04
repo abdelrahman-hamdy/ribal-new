@@ -5,10 +5,13 @@ import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
+import { getMessaging, MulticastMessage } from "firebase-admin/messaging";
 import * as crypto from "crypto";
 
 // Cloudinary secrets (set via: firebase functions:secrets:set CLOUDINARY_API_SECRET)
+// Cloudinary API key (set via: firebase functions:secrets:set CLOUDINARY_API_KEY)
 const cloudinaryApiSecret = defineSecret("CLOUDINARY_API_SECRET");
+const cloudinaryApiKey = defineSecret("CLOUDINARY_API_KEY");
 
 initializeApp();
 
@@ -131,6 +134,133 @@ function isBeforeDeadline(settings: Settings): boolean {
 
   const deadlineTime = getTodayAtTime(settings.taskDeadline);
   return riyadhNow < deadlineTime;
+}
+
+/**
+ * Check if current time is past the deadline (for marking overdue)
+ */
+function isPastDeadline(settings: Settings): boolean {
+  return !isBeforeDeadline(settings);
+}
+
+/**
+ * Check if current time is within 1 hour before the deadline (for warning notifications)
+ */
+function isInWarningWindow(settings: Settings): boolean {
+  const now = new Date();
+  const riyadhOffset = 3 * 60;
+  const utcNow = now.getTime() + now.getTimezoneOffset() * 60000;
+  const riyadhNow = new Date(utcNow + riyadhOffset * 60000);
+
+  const deadlineTime = getTodayAtTime(settings.taskDeadline);
+  const warningTime = new Date(deadlineTime.getTime() - 60 * 60 * 1000); // 1 hour before deadline
+
+  return riyadhNow >= warningTime && riyadhNow < deadlineTime;
+}
+
+/**
+ * Send push notification to a user via FCM
+ * Fetches user's FCM tokens and sends the notification
+ */
+async function sendPushNotificationToUser(
+  userId: string,
+  notification: { title: string; body: string },
+  data?: Record<string, string>
+): Promise<void> {
+  try {
+    // Fetch user's FCM tokens
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) {
+      console.log(`User ${userId} not found, skipping push notification`);
+      return;
+    }
+
+    const userData = userDoc.data();
+    const fcmTokens: string[] = userData?.fcmTokens || [];
+
+    if (fcmTokens.length === 0) {
+      console.log(`User ${userId} has no FCM tokens, skipping push notification`);
+      return;
+    }
+
+    // Prepare the multicast message
+    const message: MulticastMessage = {
+      tokens: fcmTokens,
+      notification: {
+        title: notification.title,
+        body: notification.body,
+      },
+      data: data || {},
+      android: {
+        notification: {
+          channelId: "ribal_high_importance_channel",
+          priority: "high" as const,
+          sound: "default",
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: {
+              title: notification.title,
+              body: notification.body,
+            },
+            sound: "default",
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    // Send the notification
+    const response = await getMessaging().sendEachForMulticast(message);
+    console.log(`📱 Push sent to ${userId}: ${response.successCount} success, ${response.failureCount} failed`);
+
+    // Clean up invalid tokens
+    if (response.failureCount > 0) {
+      const tokensToRemove: string[] = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          const error = resp.error;
+          if (
+            error?.code === "messaging/invalid-registration-token" ||
+            error?.code === "messaging/registration-token-not-registered"
+          ) {
+            tokensToRemove.push(fcmTokens[idx]);
+          }
+        }
+      });
+
+      if (tokensToRemove.length > 0) {
+        await db.collection("users").doc(userId).update({
+          fcmTokens: tokensToRemove.length === fcmTokens.length
+            ? []
+            : fcmTokens.filter((t) => !tokensToRemove.includes(t)),
+        });
+        console.log(`🧹 Cleaned up ${tokensToRemove.length} invalid tokens for user ${userId}`);
+      }
+    }
+  } catch (error) {
+    console.error(`Error sending push notification to user ${userId}:`, error);
+  }
+}
+
+/**
+ * Send push notifications to multiple users
+ */
+async function sendPushNotificationsToUsers(
+  userIds: string[],
+  notification: { title: string; body: string },
+  data?: Record<string, string>
+): Promise<void> {
+  // Send in parallel, but limit concurrency
+  const batchSize = 10;
+  for (let i = 0; i < userIds.length; i += batchSize) {
+    const batch = userIds.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map((userId) => sendPushNotificationToUser(userId, notification, data))
+    );
+  }
 }
 
 /**
@@ -326,6 +456,18 @@ async function createAssignmentsForTask(
     }
     await notificationBatch.commit();
     console.log(`Created ${assignmentRefs.length} task assignment notifications`);
+
+    // Send push notifications to all assigned users
+    const userIdsForPush = assignmentRefs.map(({ userId }) => userId);
+    await sendPushNotificationsToUsers(
+      userIdsForPush,
+      {
+        title: "مهمة جديدة",
+        body: `تم تعيين مهمة جديدة لك: ${task.title}`,
+      },
+      { type: "taskAssigned", deepLink: "/" }
+    );
+    console.log(`📱 Sent push notifications to ${userIdsForPush.length} users for task ${taskId}`);
   }
 
   return createdCount;
@@ -803,10 +945,37 @@ export const manualDeleteOldTasks = onCall(async (request) => {
 
 /**
  * HTTP Endpoint: Trigger cleanup of old non-recurring tasks
- * Can be called via: curl https://REGION-PROJECT.cloudfunctions.net/triggerTaskCleanup
- * WARNING: Remove or secure this endpoint in production!
+ * Requires Authorization header with Firebase ID token from an admin user
+ * Usage: curl -H "Authorization: Bearer <ID_TOKEN>" https://REGION-PROJECT.cloudfunctions.net/triggerTaskCleanup
  */
 export const triggerTaskCleanup = onRequest(async (req, res) => {
+  // Check for Authorization header
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Unauthorized: Missing or invalid authorization header" });
+    return;
+  }
+
+  const idToken = authHeader.split("Bearer ")[1];
+
+  try {
+    // Verify the token and check if user is admin
+    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const userDoc = await db.collection("users").doc(decodedToken.uid).get();
+    const userData = userDoc.data();
+
+    if (!userData || userData.role !== "admin") {
+      res.status(403).json({ error: "Forbidden: Only admins can trigger task cleanup" });
+      return;
+    }
+
+    console.log(`Admin ${decodedToken.uid} triggered task cleanup`);
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    res.status(401).json({ error: "Unauthorized: Invalid token" });
+    return;
+  }
+
   console.log("HTTP trigger: Starting non-recurring tasks deletion...");
 
   // Calculate midnight Riyadh time in UTC
@@ -868,18 +1037,26 @@ export const triggerTaskCleanup = onRequest(async (req, res) => {
 
 /**
  * Scheduled: Mark pending assignments as overdue
- * Runs at 20:10 (10 minutes after default deadline)
+ * Runs every 5 minutes and checks if we're past the dynamic deadline
  * This marks all pending assignments for today as 'overdue'
  */
 export const markOverdueAssignments = onSchedule({
-  schedule: "10 20 * * *", // Run at 20:10 every day (10 min after 20:00 deadline)
+  schedule: "*/5 * * * *", // Run every 5 minutes
   timeZone: "Asia/Riyadh",
 }, async () => {
-  console.log("Starting overdue assignments marking...");
+  console.log("Checking for overdue assignments...");
 
   // Get settings for deadline time
   const settings = await getSettings();
   console.log(`Current deadline setting: ${settings.taskDeadline}`);
+
+  // Check if we're past the deadline - if not, skip
+  if (!isPastDeadline(settings)) {
+    console.log(`Current time is before deadline (${settings.taskDeadline}), skipping`);
+    return;
+  }
+
+  console.log(`✅ Current time is PAST deadline (${settings.taskDeadline}), marking overdue assignments...`);
 
   // Calculate today's date range in Riyadh timezone
   const now = new Date();
@@ -964,6 +1141,20 @@ export const markOverdueAssignments = onSchedule({
   if (notificationCount > 0) {
     await notificationBatch.commit();
     console.log(`Created ${notificationCount} overdue notifications`);
+
+    // Send push notifications to users with overdue assignments
+    for (const [userId, count] of userOverdueCounts) {
+      const body = count === 1
+        ? "لديك مهمة واحدة متأخرة لم يتم إنجازها قبل الموعد النهائي"
+        : `لديك ${count} مهام متأخرة لم يتم إنجازها قبل الموعد النهائي`;
+
+      await sendPushNotificationToUser(
+        userId,
+        { title: "مهام متأخرة", body },
+        { type: "taskOverdue", deepLink: "/" }
+      );
+    }
+    console.log(`📱 Sent overdue push notifications to ${userOverdueCounts.size} users`);
   }
 
   console.log("Overdue marking complete");
@@ -971,18 +1162,26 @@ export const markOverdueAssignments = onSchedule({
 
 /**
  * Scheduled: Send deadline warning notifications
- * Runs at 19:00 (1 hour before default deadline)
+ * Runs every 15 minutes and checks if we're in the warning window (1 hour before deadline)
  * Warns users who have pending assignments
  */
 export const sendDeadlineWarnings = onSchedule({
-  schedule: "0 19 * * *", // Run at 19:00 every day
+  schedule: "*/15 * * * *", // Run every 15 minutes
   timeZone: "Asia/Riyadh",
 }, async () => {
-  console.log("Starting deadline warning notifications...");
+  console.log("Checking for deadline warnings...");
 
   // Get settings
   const settings = await getSettings();
   console.log(`Deadline setting: ${settings.taskDeadline}`);
+
+  // Check if we're in the warning window (1 hour before deadline)
+  if (!isInWarningWindow(settings)) {
+    console.log(`Not in warning window (1 hour before ${settings.taskDeadline}), skipping`);
+    return;
+  }
+
+  console.log(`✅ In warning window - 1 hour before ${settings.taskDeadline}, sending warnings...`);
 
   // Calculate today's date range in Riyadh timezone
   const now = new Date();
@@ -994,6 +1193,15 @@ export const sendDeadlineWarnings = onSchedule({
   const date = riyadhNow.getUTCDate();
   const todayStart = new Date(Date.UTC(year, month, date, 0, 0, 0, 0) - riyadhOffsetMs);
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const todayDateKey = `${year}-${month + 1}-${date}`;
+
+  // Check if we already sent warnings today (to avoid duplicate notifications)
+  const warningMarkerRef = db.collection("_deadlineWarnings").doc(todayDateKey);
+  const warningMarker = await warningMarkerRef.get();
+  if (warningMarker.exists) {
+    console.log(`Deadline warnings already sent today (${todayDateKey}), skipping`);
+    return;
+  }
 
   // Find all pending assignments scheduled for today
   const pendingSnapshot = await db
@@ -1005,6 +1213,8 @@ export const sendDeadlineWarnings = onSchedule({
 
   if (pendingSnapshot.empty) {
     console.log("No pending assignments found - no warnings needed");
+    // Still mark as sent to avoid repeated checks
+    await warningMarkerRef.set({ sentAt: Timestamp.now() });
     return;
   }
 
@@ -1042,7 +1252,25 @@ export const sendDeadlineWarnings = onSchedule({
   }
 
   await batch.commit();
-  console.log(`Sent ${notificationCount} deadline warning notifications`);
+  console.log(`Created ${notificationCount} deadline warning notifications`);
+
+  // Send push notifications
+  for (const [userId, count] of userPendingCounts) {
+    const body = count === 1
+      ? `لديك مهمة واحدة لم تنجزها بعد. الموعد النهائي ${settings.taskDeadline}`
+      : `لديك ${count} مهام لم تنجزها بعد. الموعد النهائي ${settings.taskDeadline}`;
+
+    await sendPushNotificationToUser(
+      userId,
+      { title: "تذكير بالموعد النهائي", body },
+      { type: "deadlineWarning", deepLink: "/" }
+    );
+  }
+  console.log(`📱 Sent deadline warning push notifications to ${userPendingCounts.size} users`);
+
+  // Mark as sent for today
+  await warningMarkerRef.set({ sentAt: warningTimestamp });
+  console.log(`Marked deadline warnings as sent for ${todayDateKey}`);
 });
 
 // ============================================
@@ -1087,11 +1315,12 @@ export const onAssignmentUpdated = onDocumentUpdated("assignments/{assignmentId}
 
     // Notify task creator (use task ID for deepLink since creator needs to see task, not assignment)
     const notificationRef = db.collection("notifications").doc();
+    const completionBody = `أنجز ${userName} المهمة: ${task.title}`;
     await notificationRef.set({
       userId: task.createdBy,
       type: "taskCompleted",
       title: "مهمة منجزة",
-      body: `أنجز ${userName} المهمة: ${task.title}`,
+      body: completionBody,
       iconName: "check_circle",
       iconColor: "#10B981",
       deepLink: `/tasks/${after.taskId}`,
@@ -1100,6 +1329,14 @@ export const onAssignmentUpdated = onDocumentUpdated("assignments/{assignmentId}
       createdAt: timestamp,
     });
     console.log(`Created completion notification for task creator ${task.createdBy}`);
+
+    // Send push notification to task creator
+    await sendPushNotificationToUser(
+      task.createdBy,
+      { title: "مهمة منجزة", body: completionBody },
+      { type: "taskCompleted", deepLink: `/tasks/${after.taskId}` }
+    );
+    console.log(`📱 Sent completion push notification to ${task.createdBy}`);
   }
 
   // Assignment apologized
@@ -1117,6 +1354,7 @@ export const onAssignmentUpdated = onDocumentUpdated("assignments/{assignmentId}
       : "مستخدم";
 
     const apologizeMessage = after.apologizeMessage || "بدون سبب";
+    const apologizeBody = `اعتذر ${userName} عن المهمة: ${task.title} - السبب: ${apologizeMessage}`;
 
     // Notify task creator (use task ID for deepLink since creator needs to see task, not assignment)
     const notificationRef = db.collection("notifications").doc();
@@ -1124,7 +1362,7 @@ export const onAssignmentUpdated = onDocumentUpdated("assignments/{assignmentId}
       userId: task.createdBy,
       type: "taskApologized",
       title: "اعتذار عن مهمة",
-      body: `اعتذر ${userName} عن المهمة: ${task.title} - السبب: ${apologizeMessage}`,
+      body: apologizeBody,
       iconName: "warning",
       iconColor: "#F59E0B",
       deepLink: `/tasks/${after.taskId}`,
@@ -1133,6 +1371,14 @@ export const onAssignmentUpdated = onDocumentUpdated("assignments/{assignmentId}
       createdAt: timestamp,
     });
     console.log(`Created apologize notification for task creator ${task.createdBy}`);
+
+    // Send push notification to task creator
+    await sendPushNotificationToUser(
+      task.createdBy,
+      { title: "اعتذار عن مهمة", body: apologizeBody },
+      { type: "taskApologized", deepLink: `/tasks/${after.taskId}` }
+    );
+    console.log(`📱 Sent apologize push notification to ${task.createdBy}`);
   }
 });
 
@@ -1142,14 +1388,14 @@ export const onAssignmentUpdated = onDocumentUpdated("assignments/{assignmentId}
 
 // Cloudinary configuration
 const CLOUDINARY_CLOUD_NAME = "dj16a87b9";
-const CLOUDINARY_API_KEY = "777665224244565";
+// API key moved to secret: CLOUDINARY_API_KEY (set via: firebase functions:secrets:set CLOUDINARY_API_KEY)
 
 /**
  * Generate Cloudinary signature for signed uploads
  * This enables overwrite and other restricted features
  */
 export const getCloudinarySignature = onCall({
-  secrets: [cloudinaryApiSecret],
+  secrets: [cloudinaryApiSecret, cloudinaryApiKey],
 }, async (request) => {
   // Check if user is authenticated
   if (!request.auth) {
@@ -1168,41 +1414,55 @@ export const getCloudinarySignature = onCall({
     throw new HttpsError("invalid-argument", "Invalid upload type");
   }
 
-  // Generate timestamp
-  const timestamp = Math.round(Date.now() / 1000);
+  // Check if Cloudinary secrets are configured
+  try {
+    const apiSecret = cloudinaryApiSecret.value();
+    const apiKey = cloudinaryApiKey.value();
 
-  // Build params to sign (must be alphabetically sorted)
-  const paramsToSign: Record<string, string | number | boolean> = {
-    folder,
-    overwrite: overwrite === true,
-    public_id: publicId,
-    timestamp,
-  };
+    if (!apiSecret || !apiKey) {
+      console.error("Cloudinary secrets are not properly configured");
+      throw new HttpsError("failed-precondition", "Upload service configuration error");
+    }
 
-  // Create signature string (params sorted alphabetically)
-  const sortedParams = Object.keys(paramsToSign)
-    .sort()
-    .map((key) => `${key}=${paramsToSign[key]}`)
-    .join("&");
+    // Generate timestamp
+    const timestamp = Math.round(Date.now() / 1000);
 
-  // Generate SHA-1 signature
-  const apiSecret = cloudinaryApiSecret.value();
-  const signature = crypto
-    .createHash("sha1")
-    .update(sortedParams + apiSecret)
-    .digest("hex");
+    // Build params to sign (must be alphabetically sorted)
+    const paramsToSign: Record<string, string | number | boolean> = {
+      folder,
+      overwrite: overwrite === true,
+      public_id: publicId,
+      timestamp,
+    };
 
-  console.log(`Generated Cloudinary signature for user ${request.auth.uid}: ${folder}/${publicId}`);
+    // Create signature string (params sorted alphabetically)
+    const sortedParams = Object.keys(paramsToSign)
+      .sort()
+      .map((key) => `${key}=${paramsToSign[key]}`)
+      .join("&");
 
-  return {
-    signature,
-    timestamp,
-    apiKey: CLOUDINARY_API_KEY,
-    cloudName: CLOUDINARY_CLOUD_NAME,
-    folder,
-    publicId,
-    overwrite: overwrite === true,
-  };
+    // Generate SHA-1 signature
+    const signature = crypto
+      .createHash("sha1")
+      .update(sortedParams + apiSecret)
+      .digest("hex");
+
+    console.log(`Generated Cloudinary signature for user ${request.auth.uid}: ${folder}/${publicId}`);
+
+    return {
+      signature,
+      timestamp,
+      apiKey,
+      cloudName: CLOUDINARY_CLOUD_NAME,
+      folder,
+      publicId,
+      overwrite: overwrite === true,
+    };
+  } catch (error) {
+    console.error("Error generating Cloudinary signature:", error);
+    // Return user-friendly error that won't expose technical details
+    throw new HttpsError("internal", "Failed to generate upload signature");
+  }
 });
 
 /**
@@ -1210,7 +1470,7 @@ export const getCloudinarySignature = onCall({
  * Used when replacing avatars or removing attachments
  */
 export const deleteCloudinaryFile = onCall({
-  secrets: [cloudinaryApiSecret],
+  secrets: [cloudinaryApiSecret, cloudinaryApiKey],
 }, async (request) => {
   // Check if user is authenticated
   if (!request.auth) {
@@ -1240,7 +1500,7 @@ export const deleteCloudinaryFile = onCall({
   const formData = new URLSearchParams({
     public_id: publicId,
     signature,
-    api_key: CLOUDINARY_API_KEY,
+    api_key: cloudinaryApiKey.value(),
     timestamp: timestamp.toString(),
   });
 
@@ -1271,6 +1531,20 @@ export const deleteCloudinaryFile = onCall({
  * Usage: Call this function with the email address to verify
  */
 export const verifyUserEmail = onCall(async (request) => {
+  // Check if user is authenticated
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  // Check if user is an admin
+  const callerUid = request.auth.uid;
+  const callerDoc = await db.collection("users").doc(callerUid).get();
+  const callerData = callerDoc.data();
+
+  if (!callerData || callerData.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can verify user emails");
+  }
+
   const { email } = request.data;
 
   if (!email) {
